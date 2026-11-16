@@ -1,0 +1,27 @@
+[package]
+name = "suja"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "suja voice assistant command line"
+
+[dependencies]
+suja-proto = { workspace = true }
+crownos-ipc = { workspace = true, features = ["tokio"] }
+anyhow = { workspace = true }
+clap = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "io-std", "io-util"] }
+suja-agent = { workspace = true, optional = true }
+suja-llm = { workspace = true, optional = true }
+suja-tools = { workspace = true, optional = true }
+tokio-util = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+ron = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, optional = true }
+
+[features]
+default = []
+local = ["dep:suja-agent", "dep:suja-llm", "dep:suja-tools", "dep:tokio-util", "dep:serde", "dep:ron", "dep:tracing-subscriber"]
+
+[lints]
+workspace = true

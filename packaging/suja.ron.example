@@ -1,0 +1,23 @@
+// Copy to ~/.config/crownos/suja.ron and edit. Every field is optional.
+(
+    // Hold to talk. Any crownos-config keybind string works, e.g. "Super+Alt" or "Super+Z".
+    // Keep it different from crowndictator's dictation_hotkey in input.ron (Super+Ctrl by default).
+    hotkey: "Super+Alt",
+    model_file: "Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
+    stt_model_dir: "sherpa-onnx-streaming-zipformer-en-2023-06-26",
+    tts: (
+        // "pocket" (reference voice wav) or "kokoro" (speaker id in `voice`)
+        backend: "pocket",
+        model_dir: "sherpa-onnx-pocket-tts-int8-2026-01-26",
+        voice: "test_wavs/bria.wav",
+        speed: 1.0,
+        threads: 4,
+    ),
+    // Web search needs one of these.
+    searxng_url: None,
+    brave_api_key: None,
+    // Override the shell allow list if you like.
+    allowed_commands: None,
+    idle_reset_seconds: 180,
+    min_free_vram_mib: 4500,
+)

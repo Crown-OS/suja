@@ -1,0 +1,68 @@
+[workspace]
+resolver = "3"
+members = [
+  "crates/suja-proto",
+  "crates/suja-speech",
+  "crates/suja-llm",
+  "crates/suja-tools",
+  "crates/suja-agent",
+  "crates/suja-context",
+  "crates/sujad",
+  "crates/suja",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/crown-os/suja"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "warn"
+todo = "deny"
+dbg_macro = "deny"
+
+[workspace.dependencies]
+suja-proto = { path = "crates/suja-proto" }
+suja-speech = { path = "crates/suja-speech" }
+suja-llm = { path = "crates/suja-llm" }
+suja-tools = { path = "crates/suja-tools" }
+suja-agent = { path = "crates/suja-agent" }
+suja-context = { path = "crates/suja-context" }
+
+crownos-ipc = { git = "https://github.com/crown-os/crownos-ipc" }
+crownos-config = { git = "https://github.com/crown-os/crownos-config", default-features = false }
+crownui-audio = { package = "audio", git = "https://github.com/crown-os/crownui" }
+crownos-protocols = { git = "https://github.com/crown-os/crownos-protocols", features = ["client"] }
+crownos-clipboard = { git = "https://github.com/crown-os/crownos-clipboard", default-features = false }
+wayland-client = "0.31"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+ron = "0.10"
+anyhow = "1"
+thiserror = "2"
+tokio = { version = "1", default-features = false }
+tokio-util = { version = "0.7", default-features = false }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4", features = ["derive"] }
+rtrb = "0.3"
+dirs = "6"
+
+[patch."https://github.com/crown-os/crownos-ipc"]
+crownos-ipc = { path = "../crownos-ipc" }
+[patch."https://github.com/crown-os/crownos-config"]
+crownos-config = { path = "../crownos-config" }
+[patch."https://github.com/crown-os/crownui"]
+audio = { path = "../crownui/audio" }
+[patch."https://github.com/crown-os/crownos-protocols"]
+crownos-protocols = { path = "../crownos-protocols" }
+[patch."https://github.com/crown-os/crownos-clipboard"]
+crownos-clipboard = { path = "../crownos-clipboard" }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"

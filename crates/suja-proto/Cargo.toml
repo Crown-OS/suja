@@ -1,0 +1,13 @@
+[package]
+name = "suja-proto"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "IPC contract of the suja voice assistant daemon"
+
+[dependencies]
+crownos-ipc = { workspace = true }
+serde = { workspace = true }
+
+[lints]
+workspace = true

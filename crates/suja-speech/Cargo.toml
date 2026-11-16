@@ -1,0 +1,21 @@
+[package]
+name = "suja-speech"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Speech stages for suja on sherpa-onnx: voice activity, streaming recognition, synthesis"
+
+[dependencies]
+sherpa-onnx = { version = "2.0.1", default-features = false, features = ["shared"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+dirs = { workspace = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+hound = "3"
+anyhow = { workspace = true }

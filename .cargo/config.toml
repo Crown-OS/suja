@@ -1,0 +1,2 @@
+[env]
+CMAKE_CUDA_ARCHITECTURES = "89"

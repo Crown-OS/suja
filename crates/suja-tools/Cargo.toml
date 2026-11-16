@@ -1,0 +1,21 @@
+[package]
+name = "suja-tools"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Tools the suja assistant can call: shell, files, notes, system control, web"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["process", "time", "fs", "io-util"] }
+tracing = { workspace = true }
+dirs = { workspace = true }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "gzip"] }
+scraper = { version = "0.24", default-features = false }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+async-trait = "0.1"
+
+[lints]
+workspace = true

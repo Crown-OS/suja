@@ -1,0 +1,32 @@
+[package]
+name = "sujad"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "suja voice assistant daemon"
+
+[dependencies]
+suja-proto = { workspace = true }
+suja-agent = { workspace = true }
+suja-llm = { workspace = true }
+suja-tools = { workspace = true }
+suja-speech = { workspace = true }
+suja-context = { workspace = true }
+crownos-ipc = { workspace = true, features = ["tokio"] }
+crownos-config = { workspace = true }
+crownui-audio = { workspace = true }
+pipewire = { version = "0.10.1", features = ["v0_3_50"] }
+evdev = "0.13"
+rtrb = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+ron = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "time", "signal", "process"] }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+dirs = { workspace = true }
+
+[lints]
+workspace = true

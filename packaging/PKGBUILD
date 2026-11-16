@@ -1,0 +1,51 @@
+# Maintainer: CrownOS
+pkgname=suja
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Suja: local hold-to-talk voice assistant for CrownOS"
+arch=('x86_64')
+url="https://github.com/crown-os/suja"
+license=('MIT')
+depends=('pipewire' 'wl-clipboard' 'libnotify' 'wireplumber' 'playerctl' 'brightnessctl')
+makedepends=('cargo' 'cmake' 'clang' 'cuda' 'git')
+optdepends=('cuda: GPU inference for the language model'
+            'crownbar: companion orb widget')
+options=('!lto')
+source=("git+$url#tag=v$pkgver"
+        "crownos-ipc::git+https://github.com/crown-os/crownos-ipc"
+        "crownos-config::git+https://github.com/crown-os/crownos-config"
+        "crownos-protocols::git+https://github.com/crown-os/crownos-protocols"
+        "crownos-clipboard::git+https://github.com/crown-os/crownos-clipboard"
+        "crownui::git+https://github.com/crown-os/crownui")
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+prepare() {
+  cd "$srcdir/$pkgname"
+  export CARGO_HOME="$srcdir/cargo-home"
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "$srcdir/$pkgname"
+  export CARGO_HOME="$srcdir/cargo-home"
+  export CMAKE_CUDA_ARCHITECTURES="89;86;75"
+  # nvcc writes large temporaries; keep them off a small tmpfs.
+  mkdir -p "$srcdir/tmp" && export TMPDIR="$srcdir/tmp"
+  # sherpa-onnx is linked dynamically: its prebuilt onnxruntime carries its own
+  # libstdc++ template code and must not be merged into the same image as llama.cpp.
+  export SUJA_RUNTIME_LIB_DIR=/usr/lib/crownos/suja
+  export SHERPA_ONNX_ARCHIVE_DIR="${SHERPA_ONNX_ARCHIVE_DIR:-}"
+  cargo build --frozen --release --workspace
+}
+
+package() {
+  cd "$srcdir/$pkgname"
+  install -Dm755 target/release/sujad "$pkgdir/usr/bin/sujad"
+  install -Dm755 target/release/suja "$pkgdir/usr/bin/suja"
+  install -d "$pkgdir/usr/lib/crownos/suja"
+  install -m755 target/release/libsherpa-onnx-c-api.so target/release/libonnxruntime.so* "$pkgdir/usr/lib/crownos/suja/"
+  install -Dm644 packaging/sujad.service "$pkgdir/usr/lib/systemd/user/sujad.service"
+  install -Dm644 packaging/90-sujad.preset "$pkgdir/usr/lib/systemd/user-preset/90-sujad.preset"
+  install -Dm755 packaging/fetch-models.sh "$pkgdir/usr/share/crownos/suja/fetch-models.sh"
+  install -Dm644 packaging/suja.ron.example "$pkgdir/usr/share/crownos/suja/suja.ron.example"
+}

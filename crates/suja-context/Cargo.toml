@@ -1,0 +1,18 @@
+[package]
+name = "suja-context"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Text-only screen context for suja: focused window, clipboard and primary selection"
+
+[dependencies]
+crownos-protocols = { workspace = true }
+crownos-clipboard = { workspace = true }
+crownos-ipc = { workspace = true, features = ["tokio"] }
+wayland-client = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["process", "time", "sync", "macros"] }
+tracing = { workspace = true }
+
+[lints]
+workspace = true

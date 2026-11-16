@@ -1,0 +1,18 @@
+[Unit]
+Description=Suja voice assistant
+Documentation=https://github.com/crown-os/suja
+PartOf=graphical-session.target
+After=graphical-session.target pipewire.service wireplumber.service
+Wants=pipewire.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/sujad
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+LockPersonality=yes
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=graphical-session.target
