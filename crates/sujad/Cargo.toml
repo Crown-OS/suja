@@ -16,7 +16,8 @@ crownos-ipc = { workspace = true, features = ["tokio"] }
 crownos-config = { workspace = true }
 crownui-audio = { workspace = true }
 pipewire = { version = "0.10.1", features = ["v0_3_50"] }
-evdev = "0.13"
+crownos-protocols = { workspace = true }
+wayland-client = { workspace = true }
 rtrb = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -129,6 +129,7 @@ fn emit(server: &mut Server, event: Event) {
         Event::ToolResult(e) => server.emit(e),
         Event::TurnFinished(e) => server.emit(e),
         Event::Failure(e) => server.emit(e),
+        Event::HotkeyTapped(e) => server.emit(e),
     };
     if let Err(error) = result {
         tracing::debug!(%error, "event not delivered");

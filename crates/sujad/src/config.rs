@@ -8,6 +8,8 @@ use suja_tools::ToolSettings;
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct Config {
+    /// The chord sujad asks the compositor for. The user can give the action
+    /// a different chord in the settings.
     pub hotkey: Keybind,
     pub model_file: String,
     pub stt_model_dir: String,
@@ -32,14 +34,7 @@ pub struct TtsConfig {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            hotkey: Keybind::new(
-                Mods {
-                    meta: true,
-                    alt: true,
-                    ..Mods::NONE
-                },
-                None,
-            ),
+            hotkey: Keybind::new(Mods::META, None),
             model_file: suja_llm::models::DEFAULT_MODEL_FILE.to_owned(),
             stt_model_dir: "sherpa-onnx-streaming-zipformer-en-2023-06-26".to_owned(),
             tts: TtsConfig::default(),

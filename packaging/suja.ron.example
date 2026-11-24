@@ -1,8 +1,8 @@
 // Copy to ~/.config/crownos/suja.ron and edit. Every field is optional.
 (
-    // Hold to talk. Any crownos-config keybind string works, e.g. "Super+Alt" or "Super+Z".
-    // Keep it different from crowndictator's dictation_hotkey in input.ron (Super+Ctrl by default).
-    hotkey: "Super+Alt",
+    // The chord sujad asks the compositor for: tap it for the assistant, hold it to talk.
+    // The compositor can give a different chord, and the user can change it in Settings.
+    hotkey: "Super",
     model_file: "Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
     stt_model_dir: "sherpa-onnx-streaming-zipformer-en-2023-06-26",
     tts: (

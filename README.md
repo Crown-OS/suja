@@ -32,7 +32,13 @@ suja watch                              # events in another terminal
 suja ask "how much disk space is free"  # a turn from typed text
 ```
 
-Hold the hotkey (`Super+Ctrl` by default, see `packaging/suja.ron.example`) and speak. The `input` group is needed for the evdev hotkey; `suja talk toggle` works without it.
+The hotkey is `Super` by default. sujad asks crownpositor for it through `crownos_keybind_v1`, and the user can change it in Settings > Keybinds > Applications.
+
+- Tap it (release before 1 s): sujad sends the `HotkeyTapped` event.
+- Hold it: the microphone opens at 1 s. Release at 2 s or later to send what you said. An earlier release drops it.
+- Press another key or a mouse button while you hold it: the recording is dropped, and the other chord works as usual.
+
+`suja talk toggle` works without the hotkey.
 
 ## Checks
 

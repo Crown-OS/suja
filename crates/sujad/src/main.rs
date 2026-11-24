@@ -1,5 +1,6 @@
 mod audio;
 mod config;
+mod hold;
 mod hotkey;
 mod ipc;
 mod orchestrator;
@@ -68,16 +69,9 @@ async fn main() -> Result<()> {
     let (speech_tx, speech) = mpsc::unbounded_channel();
     tracing::info!("loading speech recognizer");
     let listen = audio::capture::spawn(&paths, speech_tx).context("speech recognizer")?;
-    tracing::info!("starting hotkey watcher");
-
+    tracing::info!("registering the hotkey");
     let (hotkey_tx, hotkeys) = mpsc::unbounded_channel();
-    let _hotkeys = hotkey::spawn(
-        move |event| {
-            let _ = hotkey_tx.send(event);
-        },
-        config.hotkey,
-        true,
-    );
+    hotkey::spawn(config.hotkey, hotkey_tx).context("register the hotkey")?;
 
     let (requests_tx, requests) = mpsc::unbounded_channel();
     let (events_tx, events_rx) = mpsc::unbounded_channel();
@@ -114,7 +108,7 @@ async fn main() -> Result<()> {
             idle_reset: Duration::from_secs(config.idle_reset_seconds),
         },
     );
-    tracing::info!(hotkey = %config.hotkey, "sujad ready");
+    tracing::info!(preferred_hotkey = %config.hotkey, "sujad ready");
     let worker = agent_worker.clone();
     let result = tokio::select! {
         result = ipc.run() => result,

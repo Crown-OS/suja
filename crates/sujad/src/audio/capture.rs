@@ -25,6 +25,7 @@ pub enum SpeechEvent {
 pub enum ListenCommand {
     Start,
     Stop,
+    Discard,
 }
 
 #[derive(Clone)]
@@ -39,6 +40,11 @@ impl ListenHandle {
 
     pub fn stop(&self) {
         let _ = self.commands.send(ListenCommand::Stop);
+    }
+
+    /// Closes the microphone without a transcript.
+    pub fn discard(&self) {
+        let _ = self.commands.send(ListenCommand::Discard);
     }
 }
 
@@ -111,6 +117,7 @@ fn run(
                     let _ = events.send(SpeechEvent::Final(text));
                 }
             }
+            Some(ListenCommand::Discard) => listening = None,
             _ => {}
         }
         if let Some(mic) = listening.as_mut()

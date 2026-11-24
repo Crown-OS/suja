@@ -25,5 +25,6 @@ crownos_ipc::protocol! {
         event ToolResult { name: String, ok: bool, summary: String };
         event TurnFinished { timings: TurnTimings };
         event Failure { message: String };
+        event HotkeyTapped {};
     }
 }

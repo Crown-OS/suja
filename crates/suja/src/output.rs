@@ -25,6 +25,7 @@ pub fn print_event(event: &Event) {
             e.timings.endpoint_to_first_audio_ms()
         ),
         Event::Failure(e) => writeln!(out, "error: {}", e.message),
+        Event::HotkeyTapped(_) => writeln!(out, "hotkey tapped"),
     };
     let _ = out.flush();
 }

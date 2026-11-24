@@ -1,8 +1,8 @@
 use crownos_ipc::{EventMsg, Message, postcard};
 
 use crate::protocol::{
-    AssistantText, Event, Failure, FinalTranscript, MicLevel, PartialTranscript, StateChanged,
-    ToolCall, ToolResult, TurnFinished,
+    AssistantText, Event, Failure, FinalTranscript, HotkeyTapped, MicLevel, PartialTranscript,
+    StateChanged, ToolCall, ToolResult, TurnFinished,
 };
 
 pub fn decode_event(message: &Message) -> Option<Event> {
@@ -25,6 +25,7 @@ pub fn decode_event(message: &Message) -> Option<Event> {
         ToolResult,
         TurnFinished,
         Failure,
+        HotkeyTapped,
     );
     None
 }

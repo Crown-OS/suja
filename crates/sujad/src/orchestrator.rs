@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use suja_agent::{Agent, TurnEvent};
 use suja_proto::AssistantState;
 use suja_proto::protocol::{self, Event};
@@ -11,6 +11,7 @@ use tokio::sync::{mpsc, watch};
 use tokio_util::sync::CancellationToken;
 
 use crate::audio::capture::{ListenHandle, SpeechEvent};
+use crate::hold::{HoldAction, HoldTracker, PressId};
 use crate::hotkey::HotkeyEvent;
 use crate::ipc::Request;
 use crate::tts_thread::{TtsEvent, TtsHandle};
@@ -59,11 +60,18 @@ pub struct Orchestrator {
     turn_inbox: mpsc::UnboundedReceiver<(u64, TurnEvent)>,
     last_activity: tokio::time::Instant,
     release_at: Option<tokio::time::Instant>,
+    hold: HoldTracker,
+    /// Whether the microphone is open because the hotkey is held, and not
+    /// because of a `talk` request.
+    hold_listening: bool,
+    recording_due_sender: mpsc::UnboundedSender<PressId>,
+    recording_due: mpsc::UnboundedReceiver<PressId>,
 }
 
 impl Orchestrator {
     pub fn new(inputs: Inputs, outputs: Outputs, services: Services) -> Self {
         let (turn_events, turn_inbox) = mpsc::unbounded_channel();
+        let (recording_due_sender, recording_due) = mpsc::unbounded_channel();
         Self {
             inputs,
             outputs,
@@ -75,6 +83,10 @@ impl Orchestrator {
             turn_inbox,
             last_activity: tokio::time::Instant::now(),
             release_at: None,
+            hold: HoldTracker::default(),
+            hold_listening: false,
+            recording_due_sender,
+            recording_due,
         }
     }
 
@@ -83,7 +95,12 @@ impl Orchestrator {
         loop {
             tokio::select! {
                 Some(request) = self.inputs.requests.recv() => self.on_request(request).await,
-                Some(key) = self.inputs.hotkeys.recv() => self.on_hotkey(key),
+                Some(key) = self.inputs.hotkeys.recv() => self.on_hotkey(key)?,
+                Some(press) = self.recording_due.recv() => {
+                    if let Some(action) = self.hold.recording_due(press) {
+                        self.on_hold_action(action);
+                    }
+                }
                 Some(event) = self.inputs.speech.recv() => self.on_speech(event).await,
                 Some(event) = self.inputs.tts.recv() => self.on_tts(event),
                 Some((turn_id, event)) = self.turn_inbox.recv() => self.on_turn_event(turn_id, event),
@@ -130,14 +147,62 @@ impl Orchestrator {
         }
     }
 
-    fn on_hotkey(&mut self, key: HotkeyEvent) {
-        match key {
-            HotkeyEvent::Pressed => self.start_listening(),
-            HotkeyEvent::Released => self.stop_listening(),
+    fn on_hotkey(&mut self, event: HotkeyEvent) -> Result<()> {
+        let now = std::time::Instant::now();
+        let actions = match event {
+            HotkeyEvent::Assigned(keys) => {
+                tracing::info!(keys, "the compositor assigned the hotkey");
+                return Ok(());
+            }
+            HotkeyEvent::Pressed => self.hold.pressed(now),
+            HotkeyEvent::Released => self.hold.released(now).into_iter().collect(),
+            HotkeyEvent::Cancelled => self.hold.cancelled().into_iter().collect(),
+            HotkeyEvent::Lost(reason) => bail!("lost the connection to the compositor: {reason}"),
+        };
+        for action in actions {
+            self.on_hold_action(action);
+        }
+        Ok(())
+    }
+
+    fn on_hold_action(&mut self, action: HoldAction) {
+        match action {
+            HoldAction::ScheduleRecording { press, at } => {
+                let due = self.recording_due_sender.clone();
+                tokio::spawn(async move {
+                    tokio::time::sleep_until(at.into()).await;
+                    let _ = due.send(press);
+                });
+            }
+            HoldAction::Tap => self.emit(Event::HotkeyTapped(protocol::HotkeyTapped {})),
+            HoldAction::StartRecording => {
+                if self.state != AssistantState::Listening {
+                    self.start_listening();
+                    self.hold_listening = true;
+                }
+            }
+            HoldAction::SendRecording => {
+                if self.take_hold_listening() {
+                    self.stop_listening();
+                }
+            }
+            HoldAction::DropRecording => {
+                if self.take_hold_listening() {
+                    self.services.listen.discard();
+                    self.set_state(AssistantState::Idle);
+                }
+            }
         }
     }
 
+    /// Whether the open microphone belongs to the hotkey hold, which then
+    /// gives it up.
+    fn take_hold_listening(&mut self) -> bool {
+        std::mem::take(&mut self.hold_listening) && self.state == AssistantState::Listening
+    }
+
     fn start_listening(&mut self) {
+        self.hold_listening = false;
         self.cancel_turn();
         self.last_activity = tokio::time::Instant::now();
         self.services.listen.start();
@@ -200,6 +265,8 @@ impl Orchestrator {
 
     async fn on_speech(&mut self, event: SpeechEvent) {
         match event {
+            SpeechEvent::Level(_) | SpeechEvent::Partial(_)
+                if self.state == AssistantState::Idle => {}
             SpeechEvent::Level(level) => self.emit(Event::MicLevel(protocol::MicLevel { level })),
             SpeechEvent::Partial(text) => {
                 self.emit(Event::PartialTranscript(protocol::PartialTranscript {
