@@ -8,4 +8,6 @@ pub enum ModelError {
     Protocol(String),
     #[error("model runtime: {0}")]
     Runtime(String),
+    #[error("the conversation does not fit in the model's context")]
+    ContextFull,
 }

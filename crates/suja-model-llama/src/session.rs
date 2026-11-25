@@ -111,7 +111,7 @@ impl<'engine> Session<'engine> {
         cancel: &CancellationToken,
     ) -> Result<(), LlmError> {
         if tokens.len() as u32 > self.remaining_tokens() {
-            return Err(LlmError::Runtime("context window exhausted".into()));
+            return Err(LlmError::ContextFull);
         }
         let chunk = self.options.batch_tokens as usize;
         let last_index = tokens.len().saturating_sub(1);

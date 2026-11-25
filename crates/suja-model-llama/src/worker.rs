@@ -116,7 +116,10 @@ impl Worker<'_> {
             Ok(finish) => Ok(ModelEvent::Finished(finish)),
             Err(error) => {
                 self.forget_conversation();
-                Err(ModelError::Runtime(error.to_string()))
+                Err(match error {
+                    LlmError::ContextFull => ModelError::ContextFull,
+                    other => ModelError::Runtime(other.to_string()),
+                })
             }
         };
         let _ = events.send(event);

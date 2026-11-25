@@ -21,8 +21,9 @@ tracing-subscriber = { workspace = true, optional = true }
 
 [features]
 default = []
-local = ["dep:suja-agent", "dep:suja-router", "suja-router/llama", "dep:suja-tools", "dep:tokio-util", "dep:serde", "dep:ron", "dep:tracing-subscriber"]
-cuda = ["local", "suja-router/cuda"]
+local = ["dep:suja-agent", "dep:suja-router", "dep:suja-tools", "dep:tokio-util", "dep:serde", "dep:ron", "dep:tracing-subscriber"]
+llama = ["local", "suja-router/llama"]
+cuda = ["llama", "suja-router/cuda"]
 
 [lints]
 workspace = true

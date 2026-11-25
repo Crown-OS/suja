@@ -97,6 +97,10 @@ pub fn expert_view(transcript: &[Entry], task: &str) -> Vec<Entry> {
         view.push(Entry::User(format!(
             "[The assistant handed this request to you: {task}]"
         )));
+    } else if !matches!(view.last(), Some(Entry::User(_))) {
+        view.push(Entry::User(
+            "[The assistant handed the last request to you.]".to_owned(),
+        ));
     }
     view
 }

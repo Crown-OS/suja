@@ -3,8 +3,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use suja_model::{
-    AssistantReply, CancellationToken, ChatModel, Entry, Expert, FinishReason, ModelEvent,
-    ToolCall, ToolResult, ToolSpec, TurnRequest,
+    AssistantReply, CancellationToken, ChatModel, Entry, Expert, FinishReason, ModelError,
+    ModelEvent, ToolCall, ToolResult, ToolSpec, TurnRequest,
 };
 use suja_tools::{Registry, ToolOutcome};
 use tokio::sync::Mutex;
@@ -18,7 +18,10 @@ use crate::system_prompt::{
 
 const MAX_TOOL_HOPS: usize = 3;
 const CONTEXT_RESERVE_TOKENS: u32 = 1536;
-const MAX_REPLY_TOKENS: u32 = 512;
+const BASE_REPLY_TOKENS: u32 = 512;
+const EXPERT_REPLY_TOKENS: u32 = 4096;
+/// The longest expert answer kept in the conversation of the base model.
+const KEPT_ANSWER_CHARS: usize = 1500;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TurnEvent {
@@ -168,7 +171,7 @@ impl Agent {
             let outcome = self.run_confirmed(&call, &mut context).await;
             let _ = write!(
                 user_entry,
-                "\n[confirmed: tool `{}` ran: {}]",
+                "\n[The user said yes, so `{}` already ran. Do not call it again. Its result: {}]",
                 call.name, outcome.detail_for_model
             );
             context.report.tool_calls.push(call);
@@ -187,7 +190,20 @@ impl Agent {
                 }));
             FinishReason::EndOfTurn
         } else {
-            self.base_turn(&mut conversation, &mut context).await?
+            match self.base_turn(&mut conversation, &mut context).await {
+                Err(AgentError::Model(ModelError::ContextFull)) => {
+                    tracing::info!("context full, keeping only this turn");
+                    let turn_start = conversation
+                        .transcript
+                        .iter()
+                        .rposition(|entry| matches!(entry, Entry::User(_)))
+                        .unwrap_or(0);
+                    conversation.transcript.drain(..turn_start);
+                    self.context_tokens.store(0, Ordering::Relaxed);
+                    self.base_turn(&mut conversation, &mut context).await?
+                }
+                other => other?,
+            }
         };
         report.finish = Some(finish);
         on_event(TurnEvent::Finished(finish));
@@ -254,7 +270,7 @@ impl Agent {
             context,
         )
         .await?;
-        Ok(context.report.spoken[spoken_before..].trim().to_owned())
+        Ok(kept_answer(context.report.spoken[spoken_before..].trim()))
     }
 
     /// Replies and runs tools until the model stops, hands off, or uses up its hops.
@@ -313,11 +329,12 @@ impl Agent {
         transcript: &[Entry],
         context: &mut TurnContext<'_, impl FnMut(TurnEvent)>,
     ) -> Result<(AssistantReply, FinishReason), AgentError> {
-        let (model, prompt) = match role {
-            Role::Base => (&self.base, &self.base_prompt),
+        let (model, prompt, max_reply_tokens) = match role {
+            Role::Base => (&self.base, &self.base_prompt, BASE_REPLY_TOKENS),
             Role::Expert(index) => (
                 &self.experts.get(index).ok_or(AgentError::NoExpert)?.model,
                 &self.expert_prompt,
+                EXPERT_REPLY_TOKENS,
             ),
         };
         let mut stream = model.stream(
@@ -325,7 +342,7 @@ impl Agent {
                 system: prompt.system.clone(),
                 tools: prompt.tools.clone(),
                 transcript: transcript.to_vec(),
-                max_reply_tokens: MAX_REPLY_TOKENS,
+                max_reply_tokens,
             },
             context.cancel.clone(),
         );
@@ -404,6 +421,13 @@ impl Agent {
             outcome: outcome.clone(),
         });
         outcome
+    }
+}
+
+fn kept_answer(answer: &str) -> String {
+    match answer.char_indices().nth(KEPT_ANSWER_CHARS) {
+        Some((cut, _)) => format!("{}…", &answer[..cut]),
+        None => answer.to_owned(),
     }
 }
 

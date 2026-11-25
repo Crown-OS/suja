@@ -19,7 +19,7 @@ Hold-to-talk voice assistant for CrownOS. By default everything runs on the lapt
 | `suja-speech` | sherpa-onnx wrappers: VAD, streaming recognizer, synthesizers, sentence chunker |
 | `suja-context` | focused window, clipboard and primary selection as text |
 | `sujad` | the daemon: hotkey, capture, playback, orchestration, IPC |
-| `suja` | command line: `talk`, `cancel`, `say`, `ask`, `status`, `watch`, and with `--features local` (CPU) or `--features cuda` `chat`, `eval` |
+| `suja` | command line: `talk`, `cancel`, `say`, `ask`, `status`, `watch`, and with `--features local` (remote backends), `llama` (adds llama.cpp on the CPU) or `cuda` `chat`, `eval` |
 
 ## Models
 

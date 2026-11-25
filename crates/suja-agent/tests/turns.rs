@@ -5,7 +5,7 @@ use serde_json::json;
 use suja_agent::{Agent, HANDOFF_TOOL, TurnEvent};
 use suja_model::{
     CancellationToken, ChatModel, Entry, Expert, Finish, FinishReason, ModelCapabilities,
-    ModelEvent, ModelStream, ToolCall, TurnRequest, Usage,
+    ModelError, ModelEvent, ModelStream, ToolCall, TurnRequest, Usage,
 };
 use suja_tools::Registry;
 use tokio::sync::mpsc;
@@ -13,12 +13,21 @@ use tokio::sync::mpsc;
 /// Answers each request with the next scripted reply and keeps the requests.
 #[derive(Default)]
 struct ScriptedModel {
-    replies: Mutex<VecDeque<Vec<ModelEvent>>>,
+    replies: Mutex<VecDeque<Vec<Result<ModelEvent, ModelError>>>>,
     requests: Mutex<Vec<TurnRequest>>,
 }
 
 impl ScriptedModel {
     fn with_replies(replies: Vec<Vec<ModelEvent>>) -> Arc<Self> {
+        Self::with_results(
+            replies
+                .into_iter()
+                .map(|reply| reply.into_iter().map(Ok).collect())
+                .collect(),
+        )
+    }
+
+    fn with_results(replies: Vec<Vec<Result<ModelEvent, ModelError>>>) -> Arc<Self> {
         Arc::new(Self {
             replies: Mutex::new(replies.into()),
             requests: Mutex::default(),
@@ -51,7 +60,7 @@ impl ChatModel for ScriptedModel {
             .unwrap_or_default();
         let (events, stream) = mpsc::unbounded_channel();
         for event in reply {
-            let _ = events.send(Ok(event));
+            let _ = events.send(event);
         }
         stream
     }
@@ -155,4 +164,26 @@ async fn ask_claude_goes_straight_to_the_expert() {
         task: "why is the sky blue".into()
     }));
     assert!(events.contains(&TurnEvent::Text("Because of Rayleigh scattering.".into())));
+}
+
+#[tokio::test]
+async fn a_full_context_keeps_only_the_current_turn_and_tries_again() {
+    let base = ScriptedModel::with_results(vec![
+        vec![
+            Ok(ModelEvent::Text("Hello.".into())),
+            Ok(finished(FinishReason::EndOfTurn)),
+        ],
+        vec![Err(ModelError::ContextFull)],
+        vec![
+            Ok(ModelEvent::Text("Noon.".into())),
+            Ok(finished(FinishReason::EndOfTurn)),
+        ],
+    ]);
+    let agent = Agent::new(base.clone(), Vec::new(), Arc::new(Registry::default()));
+    turn(&agent, "hi").await;
+    let events = turn(&agent, "what time is it").await;
+    assert!(events.contains(&TurnEvent::Text("Noon.".into())));
+    let retry = &base.requests()[2];
+    assert_eq!(retry.transcript.len(), 1);
+    assert!(matches!(&retry.transcript[0], Entry::User(text) if text.ends_with("what time is it")));
 }
