@@ -8,10 +8,13 @@ description = "HTTP parts shared by the remote model backends of suja: credentia
 [dependencies]
 suja-model = { workspace = true }
 reqwest = { workspace = true }
-bytes = "1"
 serde = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time", "macros"] }
+serde_json = { workspace = true, optional = true }
+
+[features]
+fake-server = ["dep:serde_json", "tokio/net", "tokio/io-util", "tokio/rt"]
 
 [lints]
 workspace = true

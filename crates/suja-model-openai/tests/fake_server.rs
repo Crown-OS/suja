@@ -6,62 +6,8 @@ use suja_model::{
     TurnRequest,
 };
 use suja_model_http::Credential;
+use suja_model_http::fake_server::serve_once;
 use suja_model_openai::{OpenAiBackend, OpenAiOptions, TokenLimitField};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpListener;
-use tokio::sync::oneshot;
-
-/// Serves one request with `status` and `body`, and gives back the request headers and body.
-async fn serve_once(
-    status: &'static str,
-    body: String,
-) -> (String, oneshot::Receiver<(String, Value)>) {
-    let listener = TcpListener::bind("127.0.0.1:0")
-        .await
-        .unwrap_or_else(|e| panic!("{e}"));
-    let address = listener.local_addr().unwrap_or_else(|e| panic!("{e}"));
-    let (seen, request) = oneshot::channel();
-    tokio::spawn(async move {
-        let Ok((mut socket, _)) = listener.accept().await else {
-            return;
-        };
-        let mut received = Vec::new();
-        let mut buffer = [0u8; 8192];
-        loop {
-            let Ok(count) = socket.read(&mut buffer).await else {
-                return;
-            };
-            received.extend_from_slice(&buffer[..count]);
-            let text = String::from_utf8_lossy(&received).into_owned();
-            if let Some((head, body)) = text.split_once("\r\n\r\n") {
-                let length = head
-                    .lines()
-                    .find_map(|line| {
-                        line.to_ascii_lowercase()
-                            .strip_prefix("content-length:")
-                            .map(|v| v.trim().parse::<usize>().unwrap_or(0))
-                    })
-                    .unwrap_or(0);
-                if body.len() >= length {
-                    let _ = seen.send((
-                        head.to_owned(),
-                        serde_json::from_str(body).unwrap_or(Value::Null),
-                    ));
-                    break;
-                }
-            }
-            if count == 0 {
-                return;
-            }
-        }
-        let response = format!(
-            "HTTP/1.1 {status}\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-            body.len()
-        );
-        let _ = socket.write_all(response.as_bytes()).await;
-    });
-    (format!("http://{address}/v1"), request)
-}
 
 fn sse(chunks: &[Value]) -> String {
     let mut body: String = chunks
@@ -87,7 +33,7 @@ fn request() -> TurnRequest {
 
 fn backend(base_url: String, credential: Credential) -> OpenAiBackend {
     OpenAiBackend::new(OpenAiOptions {
-        base_url,
+        base_url: format!("{base_url}/v1"),
         model: "test-model".into(),
         credential,
         context_tokens: 4096,
@@ -106,7 +52,7 @@ async fn collect(backend: &OpenAiBackend) -> Vec<Result<ModelEvent, ModelError>>
 }
 
 #[tokio::test]
-async fn text_and_a_tool_call_stream_out_and_the_request_has_the_tools() {
+async fn text_and_a_tool_call_stream_out_and_the_request_has_the_tools() -> std::io::Result<()> {
     let body = sse(&[
         json!({"choices": [{"delta": {"content": "Starting"}}]}),
         json!({"choices": [{"delta": {"content": " it."}}]}),
@@ -114,7 +60,7 @@ async fn text_and_a_tool_call_stream_out_and_the_request_has_the_tools() {
         json!({"choices": [{"delta": {"tool_calls": [{"index": 0, "function": {"arguments": " 60}"}}]}, "finish_reason": "tool_calls"}]}),
         json!({"choices": [], "usage": {"prompt_tokens": 30, "completion_tokens": 12}}),
     ]);
-    let (base_url, seen) = serve_once("200 OK", body).await;
+    let (base_url, seen) = serve_once("200 OK", body).await?;
     let backend = backend(
         base_url,
         Credential::Environment {
@@ -140,7 +86,8 @@ async fn text_and_a_tool_call_stream_out_and_the_request_has_the_tools() {
         Some(Ok(ModelEvent::Finished(finish))) if finish.reason == FinishReason::ToolCall && finish.usage.total() == 42
     ));
 
-    let (head, body) = seen.await.unwrap_or_else(|e| panic!("{e}"));
+    let request = seen.await.map_err(std::io::Error::other)?;
+    let (head, body) = (request.head, request.body);
     assert!(
         head.to_ascii_lowercase()
             .contains("authorization: bearer suja-model-openai")
@@ -149,16 +96,19 @@ async fn text_and_a_tool_call_stream_out_and_the_request_has_the_tools() {
     assert_eq!(body["max_tokens"], 64);
     assert_eq!(body["messages"][0]["role"], "system");
     assert_eq!(body["tools"][0]["function"]["name"], "set_timer");
+    Ok(())
 }
 
 #[tokio::test]
-async fn an_error_status_becomes_a_request_error_with_the_body() {
-    let (base_url, _seen) = serve_once("401 Unauthorized", "{\"error\":\"bad key\"}".into()).await;
+async fn an_error_status_becomes_a_request_error_with_the_body() -> std::io::Result<()> {
+    let (base_url, _seen) =
+        serve_once("401 Unauthorized", "{\"error\":\"bad key\"}".into()).await?;
     let events = collect(&backend(base_url, Credential::None)).await;
     assert!(matches!(
         events.as_slice(),
         [Err(ModelError::Request(message))] if message.contains("401") && message.contains("bad key")
     ));
+    Ok(())
 }
 
 #[tokio::test]

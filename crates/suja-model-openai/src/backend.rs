@@ -1,12 +1,11 @@
+use std::ops::ControlFlow;
 use std::sync::Arc;
 
 use suja_model::{
     CancellationToken, ChatModel, Finish, FinishReason, ModelCapabilities, ModelError, ModelEvent,
     ModelStream, TurnRequest, Usage,
 };
-use suja_model_http::{
-    CredentialError, HttpCredentials, SseParser, error_from_response, next_chunk,
-};
+use suja_model_http::{CredentialError, HttpCredentials, for_each_event, send_request};
 use tokio::sync::mpsc;
 
 use crate::options::OpenAiOptions;
@@ -84,23 +83,20 @@ impl Shared {
         if let Some(key) = &authorized.api_key {
             builder = builder.bearer_auth(key);
         }
-        let response = tokio::select! {
-            () = cancel.cancelled() => return Ok(cancelled()),
-            response = builder.send() => response.map_err(|error| ModelError::Request(error.to_string()))?,
+        let Some(response) = send_request(builder, cancel).await? else {
+            return Ok(cancelled());
         };
-        let mut response = error_from_response(response).await?;
-        let mut parser = SseParser::default();
         let mut decoder = ReplyDecoder::default();
-        'body: while let Some(chunk) = next_chunk(&mut response, cancel).await? {
-            for event in parser.feed(&chunk) {
-                if event.data == "[DONE]" {
-                    break 'body;
-                }
-                if let Some(text) = decoder.decode(&event.data)? {
-                    let _ = events.send(Ok(ModelEvent::Text(text)));
-                }
+        for_each_event(response, cancel, |event| {
+            if event.data == "[DONE]" {
+                return Ok(ControlFlow::Break(()));
             }
-        }
+            if let Some(text) = decoder.decode(&event.data)? {
+                let _ = events.send(Ok(ModelEvent::Text(text)));
+            }
+            Ok(ControlFlow::Continue(()))
+        })
+        .await?;
         if cancel.is_cancelled() {
             return Ok(cancelled());
         }

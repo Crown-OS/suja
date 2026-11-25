@@ -14,7 +14,8 @@ serde_json = { workspace = true }
 tokio = { workspace = true, features = ["rt", "sync", "macros"] }
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "io-util"] }
+suja-model-http = { workspace = true, features = ["fake-server"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 [lints]
 workspace = true

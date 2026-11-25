@@ -1,0 +1,21 @@
+[package]
+name = "suja-model-anthropic"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Claude backend of suja: the Anthropic Messages API with streamed tool use and prompt caching"
+
+[dependencies]
+suja-model = { workspace = true }
+suja-model-http = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["rt", "sync", "macros"] }
+
+[dev-dependencies]
+suja-model-http = { workspace = true, features = ["fake-server"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+
+[lints]
+workspace = true
