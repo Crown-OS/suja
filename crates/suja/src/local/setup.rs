@@ -1,33 +1,36 @@
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::{Context, Result};
 use suja_agent::Agent;
-use suja_model_llama::grammar::SamplingOptions;
-use suja_model_llama::models::{DEFAULT_MODEL_FILE, find_model};
-use suja_model_llama::{EngineOptions, LlamaBackend, LlamaBackendOptions, SessionOptions};
+use suja_router::{BackendConfig, LlamaConfig, ModelConfig, load_models, ron_options};
 use suja_tools::{Registry, ToolSettings};
 
-pub async fn load_agent(model: Option<PathBuf>) -> Result<Agent> {
+pub async fn load_agent(model: Option<&Path>, models: Option<&Path>) -> Result<Agent> {
     let _ = tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .with_writer(std::io::stderr)
         .try_init();
-    let model_path = model
-        .or_else(|| find_model(DEFAULT_MODEL_FILE))
-        .context("no model found; pass --model or download the default GGUF")?;
-    let registry = Arc::new(Registry::with_defaults(&ToolSettings::default()));
+    let mut config: ModelConfig = match models {
+        Some(path) => ron_options()
+            .from_str(&std::fs::read_to_string(path).context("read the models file")?)
+            .context("parse the models file")?,
+        None => ModelConfig::default(),
+    };
+    if let Some(path) = model {
+        config.base = BackendConfig::Llama(LlamaConfig {
+            model_file: path.display().to_string(),
+            ..LlamaConfig::default()
+        });
+    }
     let started = Instant::now();
-    let backend = LlamaBackend::load(LlamaBackendOptions {
-        engine: EngineOptions {
-            model_path,
-            gpu_layers: 1000,
-        },
-        session: SessionOptions::default(),
-        sampling: SamplingOptions::default(),
-    })
-    .await?;
-    eprintln!("model ready in {:.1}s", started.elapsed().as_secs_f32());
-    Ok(Agent::new(Arc::new(backend), registry))
+    let loaded = load_models(&config).await?;
+    eprintln!(
+        "models ready in {:.1}s: {}",
+        started.elapsed().as_secs_f32(),
+        loaded.description
+    );
+    let registry = Arc::new(Registry::with_defaults(&ToolSettings::default()));
+    Ok(Agent::new(loaded.base, loaded.experts, registry))
 }

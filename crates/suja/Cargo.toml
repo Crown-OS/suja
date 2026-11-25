@@ -12,8 +12,7 @@ anyhow = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "io-std", "io-util"] }
 suja-agent = { workspace = true, optional = true }
-suja-model = { workspace = true, optional = true }
-suja-model-llama = { workspace = true, optional = true }
+suja-router = { workspace = true, optional = true }
 suja-tools = { workspace = true, optional = true }
 tokio-util = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
@@ -22,8 +21,8 @@ tracing-subscriber = { workspace = true, optional = true }
 
 [features]
 default = []
-local = ["dep:suja-agent", "dep:suja-model", "dep:suja-model-llama", "dep:suja-tools", "dep:tokio-util", "dep:serde", "dep:ron", "dep:tracing-subscriber"]
-cuda = ["local", "suja-model-llama/cuda"]
+local = ["dep:suja-agent", "dep:suja-router", "suja-router/llama", "dep:suja-tools", "dep:tokio-util", "dep:serde", "dep:ron", "dep:tracing-subscriber"]
+cuda = ["local", "suja-router/cuda"]
 
 [lints]
 workspace = true

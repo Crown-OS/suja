@@ -23,6 +23,15 @@ pub struct ModelCapabilities {
     pub runs_locally: bool,
 }
 
+/// A stronger model that the base model can hand a request to.
+#[derive(Clone)]
+pub struct Expert {
+    pub name: String,
+    /// When to use it, in words the base model reads.
+    pub use_for: String,
+    pub model: Arc<dyn ChatModel>,
+}
+
 /// Ends after one [`ModelEvent::Finished`] or one error.
 pub type ModelStream = mpsc::UnboundedReceiver<Result<ModelEvent, ModelError>>;
 

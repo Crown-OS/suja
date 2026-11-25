@@ -29,15 +29,23 @@ enum Command {
     #[cfg(feature = "local")]
     #[command(about = "Text chat with the local model, no daemon needed")]
     Chat {
+        /// A GGUF file for the base model.
         #[arg(long)]
         model: Option<std::path::PathBuf>,
+        /// A RON file like the `model` section of suja.ron: base, base_fallback, experts.
+        #[arg(long)]
+        models: Option<std::path::PathBuf>,
         prompt: Vec<String>,
     },
     #[cfg(feature = "local")]
     #[command(about = "Score tool selection on a RON case file")]
     Eval {
+        /// A GGUF file for the base model.
         #[arg(long)]
         model: Option<std::path::PathBuf>,
+        /// A RON file like the `model` section of suja.ron: base, base_fallback, experts.
+        #[arg(long)]
+        models: Option<std::path::PathBuf>,
         cases: std::path::PathBuf,
     },
 }
@@ -53,11 +61,21 @@ impl Cli {
     pub async fn run(self) -> Result<()> {
         #[cfg(feature = "local")]
         match &self.command {
-            Command::Chat { model, prompt } => {
-                return crate::local::chat(model.clone(), prompt.join(" ")).await;
+            Command::Chat {
+                model,
+                models,
+                prompt,
+            } => {
+                let agent = crate::local::load_agent(model.as_deref(), models.as_deref()).await?;
+                return crate::local::chat(&agent, prompt.join(" ")).await;
             }
-            Command::Eval { model, cases } => {
-                return crate::local::eval(model.clone(), cases).await;
+            Command::Eval {
+                model,
+                models,
+                cases,
+            } => {
+                let agent = crate::local::load_agent(model.as_deref(), models.as_deref()).await?;
+                return crate::local::eval(&agent, cases).await;
             }
             _ => {}
         }

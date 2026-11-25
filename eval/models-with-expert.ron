@@ -1,0 +1,9 @@
+// A models file for `suja chat` and `suja eval`: the local base and one expert.
+// The eval never calls the expert, so it needs no key.
+(
+    base: Llama(),
+    experts: [
+        (name: "claude", use_for: "careful reasoning, planning, writing and multi-step work",
+         backend: Anthropic(credential: Environment(variable: "ANTHROPIC_API_KEY"))),
+    ],
+)

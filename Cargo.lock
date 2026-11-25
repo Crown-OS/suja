@@ -2416,9 +2416,8 @@ dependencies = [
  "ron 0.10.1",
  "serde",
  "suja-agent",
- "suja-model",
- "suja-model-llama",
  "suja-proto",
+ "suja-router",
  "suja-tools",
  "tokio",
  "tokio-util",
@@ -2523,6 +2522,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "suja-router"
+version = "0.1.0"
+dependencies = [
+ "ron 0.10.1",
+ "serde",
+ "suja-model",
+ "suja-model-anthropic",
+ "suja-model-http",
+ "suja-model-llama",
+ "suja-model-openai",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "suja-speech"
 version = "0.1.0"
 dependencies = [
@@ -2570,8 +2585,8 @@ dependencies = [
  "suja-agent",
  "suja-context",
  "suja-model",
- "suja-model-llama",
  "suja-proto",
+ "suja-router",
  "suja-speech",
  "suja-tools",
  "tokio",

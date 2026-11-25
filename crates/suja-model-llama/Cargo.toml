@@ -11,7 +11,7 @@ llama-cpp-2 = "0.1.161"
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["sync"] }
+tokio = { workspace = true, features = ["sync", "process"] }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 encoding_rs = "0.8"

@@ -1,12 +1,10 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Instant;
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use suja_agent::Agent;
 use tokio_util::sync::CancellationToken;
-
-use super::setup::load_agent;
 
 #[derive(Deserialize)]
 struct CaseFile {
@@ -25,11 +23,10 @@ enum Expect {
     NoTool,
 }
 
-pub async fn eval(model: Option<PathBuf>, cases: &Path) -> Result<()> {
+pub async fn eval(agent: &Agent, cases: &Path) -> Result<()> {
     let file: CaseFile = ron::from_str(&std::fs::read_to_string(cases).context("read cases")?)
         .context("parse cases")?;
-    let agent = load_agent(model).await?;
-    score(&agent, &file).await
+    score(agent, &file).await
 }
 
 async fn score(agent: &Agent, file: &CaseFile) -> Result<()> {

@@ -8,6 +8,7 @@ pub mod session;
 mod stream;
 pub mod toolcall;
 pub mod util;
+pub mod vram;
 mod worker;
 
 pub use backend::{LlamaBackend, LlamaBackendOptions};

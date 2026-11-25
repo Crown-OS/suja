@@ -3,7 +3,39 @@
     // The chord sujad asks the compositor for: tap it for the assistant, hold it to talk.
     // The compositor can give a different chord, and the user can change it in Settings.
     hotkey: "Super",
-    model_file: "Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
+    // The language models. Without this section, `model_file` on llama.cpp is the only model.
+    model: (
+        // Talks to you. A fast local model keeps the first word quick.
+        base: Llama(model_file: "Qwen3-4B-Instruct-2507-Q4_K_M.gguf", min_free_vram_mib: 4500),
+        // Used when the base does not load, for example with too little free VRAM.
+        // LM Studio, Ollama, llama-server and vLLM all speak this API.
+        base_fallback: OpenAiCompatible(base_url: "http://127.0.0.1:1234/v1", model: "qwen3-4b"),
+        // Stronger models. The base hands a hard request to the one that fits;
+        // say "ask <name> ..." to go to one directly.
+        experts: [
+            (
+                name: "claude",
+                use_for: "careful reasoning, planning, writing and multi-step work",
+                // The key stays in crownos-secretsd; suja gets only a proxy. For a quick test,
+                // use `credential: Environment(variable: "ANTHROPIC_API_KEY")`.
+                backend: Anthropic(
+                    model: "claude-opus-5-5",
+                    effort: "low",
+                    credential: Secret(name: "anthropic_api_key"),
+                ),
+            ),
+            // (
+            //     name: "gpt",
+            //     use_for: "a second opinion",
+            //     backend: OpenAiCompatible(
+            //         base_url: "https://api.openai.com/v1",
+            //         model: "gpt-5",
+            //         token_limit: MaxCompletionTokens,
+            //         credential: Environment(variable: "OPENAI_API_KEY"),
+            //     ),
+            // ),
+        ],
+    ),
     stt_model_dir: "sherpa-onnx-streaming-zipformer-en-2023-06-26",
     tts: (
         // "pocket" (reference voice wav) or "kokoro" (speaker id in `voice`)
@@ -19,5 +51,4 @@
     // Override the shell allow list if you like.
     allowed_commands: None,
     idle_reset_seconds: 180,
-    min_free_vram_mib: 4500,
 )

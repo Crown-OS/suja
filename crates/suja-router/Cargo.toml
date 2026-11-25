@@ -1,0 +1,28 @@
+[package]
+name = "suja-router"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Builds the base model and the expert models of suja from its config"
+
+[dependencies]
+suja-model = { workspace = true }
+suja-model-http = { workspace = true }
+suja-model-llama = { workspace = true, optional = true }
+suja-model-openai = { workspace = true }
+suja-model-anthropic = { workspace = true }
+serde = { workspace = true }
+ron = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+
+[features]
+default = ["llama"]
+llama = ["dep:suja-model-llama"]
+cuda = ["llama", "suja-model-llama/cuda"]
+
+[lints]
+workspace = true

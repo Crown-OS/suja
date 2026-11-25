@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use crownos_config::{Keybind, Mods};
 use serde::Deserialize;
+use suja_router::{BackendConfig, LlamaConfig, ModelConfig, ron_options};
 use suja_tools::ToolSettings;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -11,6 +12,8 @@ pub struct Config {
     /// The chord sujad asks the compositor for. The user can give the action
     /// a different chord in the settings.
     pub hotkey: Keybind,
+    /// The base model and the experts. Without it, `model_file` on llama.cpp is the base.
+    pub model: Option<ModelConfig>,
     pub model_file: String,
     pub stt_model_dir: String,
     pub tts: TtsConfig,
@@ -35,7 +38,8 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             hotkey: Keybind::new(Mods::META, None),
-            model_file: suja_model_llama::models::DEFAULT_MODEL_FILE.to_owned(),
+            model: None,
+            model_file: LlamaConfig::default().model_file,
             stt_model_dir: "sherpa-onnx-streaming-zipformer-en-2023-06-26".to_owned(),
             tts: TtsConfig::default(),
             searxng_url: None,
@@ -73,7 +77,20 @@ impl Config {
         }
         let text =
             std::fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
-        ron::from_str(&text).with_context(|| format!("parse {}", path.display()))
+        ron_options()
+            .from_str(&text)
+            .with_context(|| format!("parse {}", path.display()))
+    }
+
+    pub fn model_config(&self) -> ModelConfig {
+        self.model.clone().unwrap_or_else(|| ModelConfig {
+            base: BackendConfig::Llama(LlamaConfig {
+                model_file: self.model_file.clone(),
+                min_free_vram_mib: self.min_free_vram_mib,
+                ..LlamaConfig::default()
+            }),
+            ..ModelConfig::default()
+        })
     }
 
     pub fn tool_settings(&self) -> ToolSettings {
@@ -86,5 +103,33 @@ impl Config {
             settings.allowed_commands = allowed.clone();
         }
         settings
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_packaged_example_parses_and_names_an_expert() -> Result<()> {
+        let config: Config =
+            ron_options().from_str(include_str!("../../../packaging/suja.ron.example"))?;
+        let models = config.model_config();
+        assert!(matches!(models.base, BackendConfig::Llama(_)));
+        assert!(models.base_fallback.is_some());
+        assert_eq!(models.experts[0].name, "claude");
+        Ok(())
+    }
+
+    #[test]
+    fn an_old_config_keeps_its_model_file() {
+        let config = Config {
+            model_file: "old.gguf".into(),
+            ..Config::default()
+        };
+        assert!(matches!(
+            config.model_config().base,
+            BackendConfig::Llama(llama) if llama.model_file == "old.gguf"
+        ));
     }
 }

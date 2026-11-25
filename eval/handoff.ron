@@ -1,0 +1,17 @@
+// Handoff eval. Run with a models file that has at least one expert, for example
+// `suja eval --models eval/models-with-expert.ron eval/handoff.ron`. No expert is called:
+// the eval checks only the first action of the base model.
+(
+    cases: [
+        (prompt: "plan a three day trip to Kyoto on a small budget", expect: Tool("handoff")),
+        (prompt: "write a short cover letter for a rust developer job", expect: Tool("handoff")),
+        (prompt: "draft a polite email that declines tomorrow's meeting", expect: Tool("handoff")),
+        (prompt: "explain how TCP congestion control works, step by step", expect: Tool("handoff")),
+        (prompt: "help me design a database schema for a small library app", expect: Tool("handoff")),
+        (prompt: "what is fifteen percent of eighty", expect: NoTool),
+        (prompt: "what's the capital of Japan", expect: NoTool),
+        (prompt: "set a timer for five minutes", expect: Tool("set_timer")),
+        (prompt: "pause the music", expect: Tool("media_control")),
+        (prompt: "how much free disk space do I have", expect: Tool("run_command")),
+    ],
+)

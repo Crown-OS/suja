@@ -362,6 +362,12 @@ impl Orchestrator {
                 }));
             }
             TurnEvent::NeedsConfirmation(_) => self.set_state(AssistantState::Confirming),
+            TurnEvent::Handoff { expert, task } => {
+                tracing::info!(turn = turn_id, %expert, %task, "handed off");
+                self.set_state(AssistantState::Tool {
+                    name: format!("asking {expert}"),
+                });
+            }
             TurnEvent::ToolResult { name, outcome } => {
                 self.emit(Event::ToolResult(protocol::ToolResult {
                     name,

@@ -1,5 +1,4 @@
 use std::io::Write;
-use std::path::PathBuf;
 use std::time::Instant;
 
 use anyhow::Result;
@@ -7,14 +6,7 @@ use suja_agent::{Agent, TurnEvent};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio_util::sync::CancellationToken;
 
-use super::setup::load_agent;
-
-pub async fn chat(model: Option<PathBuf>, prompt: String) -> Result<()> {
-    let agent = load_agent(model).await?;
-    converse(&agent, prompt).await
-}
-
-async fn converse(agent: &Agent, prompt: String) -> Result<()> {
+pub async fn chat(agent: &Agent, prompt: String) -> Result<()> {
     if !prompt.trim().is_empty() {
         return run_turn(agent, &prompt).await;
     }
@@ -55,6 +47,9 @@ async fn run_turn(agent: &Agent, text: &str) -> Result<()> {
                         if outcome.ok { "ok" } else { "failed" },
                         outcome.spoken_summary
                     );
+                }
+                TurnEvent::Handoff { expert, task } => {
+                    let _ = write!(out, "\n  [asking {expert}: {task}]\n");
                 }
                 TurnEvent::NeedsConfirmation(call) => {
                     let _ = writeln!(out, "  [waiting for a yes before running {}]", call.name);

@@ -1,6 +1,6 @@
 # Suja
 
-Hold-to-talk voice assistant for CrownOS. Everything runs on the laptop: a 4B language model on the GPU, speech recognition and synthesis on the CPU, tools for the shell, files, notes, media, volume, brightness, timers and the web, and a companion orb in crownbar.
+Hold-to-talk voice assistant for CrownOS. By default everything runs on the laptop: a 4B language model on the GPU, speech recognition and synthesis on the CPU, tools for the shell, files, notes, media, volume, brightness, timers and the web, and a companion orb in crownbar.
 
 ## Layout
 
@@ -9,8 +9,12 @@ Hold-to-talk voice assistant for CrownOS. Everything runs on the laptop: a 4B la
 | `suja-proto` | crownos-ipc contract shared with crownbar |
 | `suja-model` | the model seam: transcript, tool calls, stream events and the `ChatModel` trait |
 | `suja-model-llama` | llama.cpp backend: KV-cached session, Qwen prompt format, lazy tool-call grammar; feature `cuda` (default) |
+| `suja-model-http` | credentials, server-sent events and errors for the remote backends |
+| `suja-model-openai` | OpenAI-compatible backend: LM Studio, Ollama, llama-server, vLLM, OpenAI |
+| `suja-model-anthropic` | Claude backend: Messages API, streamed tool use, prompt caching |
+| `suja-router` | builds the base model, its fallback and the experts from the `model` section of `suja.ron` |
+| `suja-agent` | the conversation, the tool-calling turn loop and the handoff to experts, for any `ChatModel` |
 | `suja-tools` | the nine tools and their allow lists |
-| `suja-agent` | the conversation and the tool-calling turn loop, for any `ChatModel` |
 | `suja-speech` | sherpa-onnx wrappers: VAD, streaming recognizer, synthesizers, sentence chunker |
 | `suja-context` | focused window, clipboard and primary selection as text |
 | `sujad` | the daemon: hotkey, capture, playback, orchestration, IPC |
@@ -23,6 +27,17 @@ packaging/fetch-models.sh ~/.cache/crownos/suja/models
 ```
 
 The daemon looks in `/usr/share/crownos/suja/models` first, then `~/.cache/crownos/suja/models`.
+
+## Models and handoff
+
+A fast **base** model talks to you. **Experts** are stronger models. When a request needs careful
+reasoning, planning or long writing, the base calls the `handoff` tool and the expert answers you
+directly, with the same tools. Say "ask claude ..." to go to an expert directly. See the `model`
+section of `packaging/suja.ron.example`.
+
+A backend needs a name and a credential, no code: `Llama(...)`, `OpenAiCompatible(...)` or
+`Anthropic(...)`. A credential is `None`, `Environment(variable: "...")` or
+`Secret(name: "...")` (crownos-secretsd). The config never holds a key.
 
 ## Build and run
 
@@ -46,4 +61,5 @@ The hotkey is `Super` by default. sujad asks crownpositor for it through `crowno
 ```sh
 cargo fmt --check && cargo clippy --workspace -- -D warnings && cargo test --workspace
 cargo run -p suja --features cuda -- eval eval/toolcalls.ron
+cargo run -p suja --features cuda -- eval --models eval/models-with-expert.ron eval/handoff.ron
 ```

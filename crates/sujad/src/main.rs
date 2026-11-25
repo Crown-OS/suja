@@ -6,7 +6,6 @@ mod ipc;
 mod orchestrator;
 mod tts_thread;
 mod turn;
-mod vram;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -15,10 +14,8 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use suja_agent::Agent;
-use suja_model_llama::grammar::SamplingOptions;
-use suja_model_llama::models::find_model;
-use suja_model_llama::{EngineOptions, LlamaBackend, LlamaBackendOptions, SessionOptions};
 use suja_proto::AssistantState;
+use suja_router::load_models;
 use suja_speech::tts::SherpaSynthesizer;
 use suja_speech::{ModelPaths, Synthesizer, TtsBackend, TtsOptions};
 use suja_tools::Registry;
@@ -37,22 +34,13 @@ async fn main() -> Result<()> {
         )
         .init();
     let config = Config::load()?;
-    vram::preflight(config.min_free_vram_mib).await?;
 
-    let model_path = find_model(&config.model_file)
-        .with_context(|| format!("model {} not found", config.model_file))?;
     let registry = Arc::new(Registry::with_defaults(&config.tool_settings()));
-    let backend = LlamaBackend::load(LlamaBackendOptions {
-        engine: EngineOptions {
-            model_path,
-            gpu_layers: 1000,
-        },
-        session: SessionOptions::default(),
-        sampling: SamplingOptions::default(),
-    })
-    .await
-    .context("load language model")?;
-    let agent = Arc::new(Agent::new(Arc::new(backend), registry));
+    let models = load_models(&config.model_config())
+        .await
+        .context("load the language models")?;
+    tracing::info!(models = %models.description, "language models ready");
+    let agent = Arc::new(Agent::new(models.base, models.experts, registry));
 
     let paths = ModelPaths::discover(&config.stt_model_dir, &config.tts.model_dir)
         .context("speech models")?;
@@ -79,7 +67,7 @@ async fn main() -> Result<()> {
     let ipc = IpcServer::bind(
         Shared {
             state: state_rx,
-            model: config.model_file.clone(),
+            model: models.description,
             tts_backend: config.tts.backend.clone(),
             context_tokens: context_tokens.clone(),
         },
