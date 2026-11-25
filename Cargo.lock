@@ -2463,6 +2463,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "suja-model-http"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "reqwest",
+ "serde",
+ "suja-model",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "suja-model-llama"
 version = "0.1.0"
 dependencies = [
@@ -2476,6 +2488,18 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+]
+
+[[package]]
+name = "suja-model-openai"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
+ "suja-model",
+ "suja-model-http",
+ "tokio",
 ]
 
 [[package]]

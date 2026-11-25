@@ -5,6 +5,8 @@ members = [
   "crates/suja-speech",
   "crates/suja-model",
   "crates/suja-model-llama",
+  "crates/suja-model-http",
+  "crates/suja-model-openai",
   "crates/suja-tools",
   "crates/suja-agent",
   "crates/suja-context",
@@ -28,6 +30,8 @@ dbg_macro = "deny"
 suja-proto = { path = "crates/suja-proto" }
 suja-speech = { path = "crates/suja-speech" }
 suja-model = { path = "crates/suja-model" }
+suja-model-http = { path = "crates/suja-model-http" }
+suja-model-openai = { path = "crates/suja-model-openai" }
 suja-model-llama = { path = "crates/suja-model-llama", default-features = false }
 suja-tools = { path = "crates/suja-tools" }
 suja-agent = { path = "crates/suja-agent" }
@@ -51,6 +55,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 clap = { version = "4", features = ["derive"] }
 rtrb = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "gzip"] }
 dirs = "6"
 
 [patch."https://github.com/crown-os/crownos-ipc"]

@@ -1,0 +1,17 @@
+[package]
+name = "suja-model-http"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "HTTP parts shared by the remote model backends of suja: credentials, server-sent events, errors"
+
+[dependencies]
+suja-model = { workspace = true }
+reqwest = { workspace = true }
+bytes = "1"
+serde = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync", "time", "macros"] }
+
+[lints]
+workspace = true
