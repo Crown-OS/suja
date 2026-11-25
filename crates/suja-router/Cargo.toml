@@ -11,6 +11,7 @@ suja-model-http = { workspace = true }
 suja-model-llama = { workspace = true, optional = true }
 suja-model-openai = { workspace = true }
 suja-model-anthropic = { workspace = true }
+suja-model-cli = { workspace = true }
 serde = { workspace = true }
 ron = { workspace = true }
 thiserror = { workspace = true }

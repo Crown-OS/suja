@@ -12,6 +12,7 @@ Hold-to-talk voice assistant for CrownOS. By default everything runs on the lapt
 | `suja-model-http` | credentials, server-sent events and errors for the remote backends |
 | `suja-model-openai` | OpenAI-compatible backend: LM Studio, Ollama, llama-server, vLLM, OpenAI |
 | `suja-model-anthropic` | Claude backend: Messages API, streamed tool use, prompt caching |
+| `suja-model-cli` | agent CLIs as experts: Claude Code (`claude -p`) and Codex (`codex exec`), with their own read-only tools |
 | `suja-router` | builds the base model, its fallback and the experts from the `model` section of `suja.ron` |
 | `suja-agent` | the conversation, the tool-calling turn loop and the handoff to experts, for any `ChatModel` |
 | `suja-tools` | the nine tools and their allow lists |
@@ -35,8 +36,9 @@ reasoning, planning or long writing, the base calls the `handoff` tool and the e
 directly, with the same tools. Say "ask claude ..." to go to an expert directly. See the `model`
 section of `packaging/suja.ron.example`.
 
-A backend needs a name and a credential, no code: `Llama(...)`, `OpenAiCompatible(...)` or
-`Anthropic(...)`. A credential is `None`, `Environment(variable: "...")` or
+A backend needs a name and a credential, no code: `Llama(...)`, `OpenAiCompatible(...)`,
+`Anthropic(...)`, `ClaudeCode(...)` or `Codex(...)`. The two CLI backends use your own `claude`
+or `codex` login and their own read-only tools. A credential is `None`, `Environment(variable: "...")` or
 `Secret(name: "...")` (crownos-secretsd). The config never holds a key.
 
 ## Build and run

@@ -8,6 +8,7 @@ members = [
   "crates/suja-model-http",
   "crates/suja-model-openai",
   "crates/suja-model-anthropic",
+  "crates/suja-model-cli",
   "crates/suja-router",
   "crates/suja-tools",
   "crates/suja-agent",
@@ -35,6 +36,7 @@ suja-model = { path = "crates/suja-model" }
 suja-model-http = { path = "crates/suja-model-http" }
 suja-model-openai = { path = "crates/suja-model-openai" }
 suja-model-anthropic = { path = "crates/suja-model-anthropic" }
+suja-model-cli = { path = "crates/suja-model-cli" }
 suja-router = { path = "crates/suja-router", default-features = false }
 suja-model-llama = { path = "crates/suja-model-llama", default-features = false }
 suja-tools = { path = "crates/suja-tools" }

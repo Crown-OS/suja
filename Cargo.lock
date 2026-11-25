@@ -2474,6 +2474,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "suja-model-cli"
+version = "0.1.0"
+dependencies = [
+ "dirs",
+ "serde",
+ "serde_json",
+ "suja-model",
+ "tokio",
+]
+
+[[package]]
 name = "suja-model-http"
 version = "0.1.0"
 dependencies = [
@@ -2529,6 +2540,7 @@ dependencies = [
  "serde",
  "suja-model",
  "suja-model-anthropic",
+ "suja-model-cli",
  "suja-model-http",
  "suja-model-llama",
  "suja-model-openai",

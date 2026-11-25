@@ -24,6 +24,13 @@
                     credential: Secret(name: "anthropic_api_key"),
                 ),
             ),
+            // Claude Code with your own `claude` login. It reads and searches files and the
+            // web; it cannot run commands or edit. Codex(...) works the same way.
+            // (
+            //     name: "claude-code",
+            //     use_for: "questions about the files and code on this computer",
+            //     backend: ClaudeCode(model: "opus"),
+            // ),
             // (
             //     name: "gpt",
             //     use_for: "a second opinion",

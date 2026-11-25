@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use suja_model::{ChatModel, Expert};
 use suja_model_anthropic::AnthropicBackend;
+use suja_model_cli::CliBackend;
 use suja_model_openai::OpenAiBackend;
 
 use crate::config::{BackendConfig, LlamaConfig, ModelConfig};
@@ -56,6 +57,8 @@ async fn build_backend(config: &BackendConfig) -> Result<Arc<dyn ChatModel>, Rou
         BackendConfig::Llama(llama) => load_llama(llama).await?,
         BackendConfig::OpenAiCompatible(options) => Arc::new(OpenAiBackend::new(options.clone())?),
         BackendConfig::Anthropic(options) => Arc::new(AnthropicBackend::new(options.clone())?),
+        BackendConfig::ClaudeCode(options) => Arc::new(CliBackend::claude_code(options.clone())),
+        BackendConfig::Codex(options) => Arc::new(CliBackend::codex(options.clone())),
     })
 }
 

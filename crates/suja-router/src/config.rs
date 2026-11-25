@@ -1,6 +1,7 @@
 use ron::extensions::Extensions;
 use serde::Deserialize;
 use suja_model_anthropic::AnthropicOptions;
+use suja_model_cli::{ClaudeCodeOptions, CodexOptions};
 use suja_model_openai::OpenAiOptions;
 
 const DEFAULT_MODEL_FILE: &str = "Qwen3-4B-Instruct-2507-Q4_K_M.gguf";
@@ -39,6 +40,10 @@ pub enum BackendConfig {
     Llama(LlamaConfig),
     OpenAiCompatible(OpenAiOptions),
     Anthropic(AnthropicOptions),
+    /// `claude -p` with your Claude Code login and its own read-only tools.
+    ClaudeCode(ClaudeCodeOptions),
+    /// `codex exec` with your Codex login in a read-only sandbox.
+    Codex(CodexOptions),
 }
 
 impl BackendConfig {
@@ -47,6 +52,14 @@ impl BackendConfig {
             Self::Llama(llama) => format!("llama.cpp {}", llama.model_file),
             Self::OpenAiCompatible(options) => format!("{} at {}", options.model, options.base_url),
             Self::Anthropic(options) => format!("Claude {}", options.model),
+            Self::ClaudeCode(options) => format!(
+                "Claude Code {}",
+                options.model.as_deref().unwrap_or("default model")
+            ),
+            Self::Codex(options) => format!(
+                "Codex {}",
+                options.model.as_deref().unwrap_or("default model")
+            ),
         }
     }
 }
@@ -93,6 +106,8 @@ mod tests {
                 experts: [
                     (name: "claude", use_for: "hard reasoning",
                      backend: Anthropic(effort: "low", credential: Secret(name: "anthropic_api_key"))),
+                    (name: "claude-code", use_for: "questions about files and code", backend: ClaudeCode()),
+                    (name: "codex", use_for: "a second opinion", backend: Codex(model: "gpt-5-codex")),
                 ],
             )"#,
         )?;
