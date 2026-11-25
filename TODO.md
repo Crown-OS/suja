@@ -10,3 +10,4 @@ Plan: ~/.claude/plans/create-a-plan-to-soft-kettle.md
 - [~] M5 Screen context: clipboard preview reaches the model (verified); primary selection via wl-paste wired; focused window stays None because crownpositor never emits the plugin-host window events its XML declares
 - [~] M6 crownbar orb widget: `assistant` widget, orb icon, transcript panel; compiles and lints; bar not run with it; auto-open bubble and transcript row not done
 - [~] M7 Packaging: PKGBUILD, sujad.service, preset, fetch-models.sh, suja.ron.example written; makepkg and a release build not run
+- [~] M8 Model layer: `ChatModel` seam; llama.cpp, OpenAI-compatible, Claude API, Claude Code and Codex backends; base-to-expert handoff; keys from crownos-secretsd. Unit and fake-server tests pass on CPU. Not done: CUDA build and the eval gate on the GPU, a live LM Studio base, a real Claude API and `claude -p` turn
