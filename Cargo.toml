@@ -44,6 +44,8 @@ suja-agent = { path = "crates/suja-agent" }
 suja-context = { path = "crates/suja-context" }
 
 crownos-ipc = { git = "https://github.com/crown-os/crownos-ipc" }
+secrets-core = { path = "../crownos-secrets-manager/crates/secrets-core" }
+secrets-protocol = { path = "../crownos-secrets-manager/crates/secrets-protocol" }
 crownos-config = { git = "https://github.com/crown-os/crownos-config", default-features = false }
 crownui-audio = { package = "audio", git = "https://github.com/crown-os/crownui" }
 crownos-protocols = { git = "https://github.com/crown-os/crownos-protocols", features = ["client"] }

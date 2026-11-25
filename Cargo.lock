@@ -2148,6 +2148,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "secrecy"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e891af845473308773346dc847b2c23ee78fe442e0472ac50e22a18a93d3ae5a"
+dependencies = [
+ "zeroize",
+]
+
+[[package]]
+name = "secrets-core"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "regex",
+ "serde",
+ "thiserror",
+ "zeroize",
+]
+
+[[package]]
+name = "secrets-protocol"
+version = "0.1.0"
+dependencies = [
+ "crownos-ipc",
+ "rustix",
+ "secrecy",
+ "secrets-core",
+ "serde",
+ "thiserror",
+ "zeroize",
+]
+
+[[package]]
 name = "selectors"
 version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2488,7 +2521,10 @@ dependencies = [
 name = "suja-model-http"
 version = "0.1.0"
 dependencies = [
+ "crownos-ipc",
  "reqwest",
+ "secrets-core",
+ "secrets-protocol",
  "serde",
  "serde_json",
  "suja-model",

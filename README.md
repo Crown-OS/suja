@@ -41,6 +41,17 @@ A backend needs a name and a credential, no code: `Llama(...)`, `OpenAiCompatibl
 or `codex` login and their own read-only tools. A credential is `None`, `Environment(variable: "...")` or
 `Secret(name: "...")` (crownos-secretsd). The config never holds a key.
 
+With `Secret`, sujad asks crownos-secretsd for an HTTPS proxy session. The proxy adds the key to
+requests for the bound host, so the key never enters sujad. Set it up once:
+
+```sh
+crownos-secrets add anthropic_api_key --kind api-key
+crownos-secrets bind anthropic_api_key --agent exe:/usr/bin/sujad \
+    --http-host api.anthropic.com --http-header x-api-key --http-format '{value}'
+```
+
+For OpenAI use `--http-host api.openai.com --http-header Authorization --http-format 'Bearer {value}'`.
+
 ## Build and run
 
 ```sh

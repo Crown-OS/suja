@@ -8,9 +8,12 @@ description = "HTTP parts shared by the remote model backends of suja: credentia
 [dependencies]
 suja-model = { workspace = true }
 reqwest = { workspace = true }
+crownos-ipc = { workspace = true, features = ["tokio"] }
+secrets-core = { workspace = true }
+secrets-protocol = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["sync", "time", "macros"] }
+tokio = { workspace = true, features = ["sync", "time", "macros", "fs"] }
 serde_json = { workspace = true, optional = true }
 
 [features]
