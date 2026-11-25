@@ -11,9 +11,7 @@ use super::setup::load_agent;
 
 pub async fn chat(model: Option<PathBuf>, prompt: String) -> Result<()> {
     let agent = load_agent(model).await?;
-    let result = converse(&agent, prompt).await;
-    agent.worker().shutdown();
-    result
+    converse(&agent, prompt).await
 }
 
 async fn converse(agent: &Agent, prompt: String) -> Result<()> {
@@ -66,12 +64,11 @@ async fn run_turn(agent: &Agent, text: &str) -> Result<()> {
             let _ = out.flush();
         })
         .await?;
-    let stats = agent.worker().stats().await?;
     eprintln!(
         "\n  first token {} ms, total {} ms, context {} tokens",
         first_token.map_or(0, |d| d.as_millis()),
         started.elapsed().as_millis(),
-        stats.tokens_in_context
+        agent.context_tokens()
     );
     Ok(())
 }

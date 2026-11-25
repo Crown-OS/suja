@@ -7,13 +7,14 @@ Hold-to-talk voice assistant for CrownOS. Everything runs on the laptop: a 4B la
 | Crate | Purpose |
 |---|---|
 | `suja-proto` | crownos-ipc contract shared with crownbar |
-| `suja-llm` | llama.cpp engine, KV-cached session, Qwen prompt format, lazy tool-call grammar |
+| `suja-model` | the model seam: transcript, tool calls, stream events and the `ChatModel` trait |
+| `suja-model-llama` | llama.cpp backend: KV-cached session, Qwen prompt format, lazy tool-call grammar; feature `cuda` (default) |
 | `suja-tools` | the nine tools and their allow lists |
-| `suja-agent` | language-model worker thread and the tool-calling turn loop |
+| `suja-agent` | the conversation and the tool-calling turn loop, for any `ChatModel` |
 | `suja-speech` | sherpa-onnx wrappers: VAD, streaming recognizer, synthesizers, sentence chunker |
 | `suja-context` | focused window, clipboard and primary selection as text |
 | `sujad` | the daemon: hotkey, capture, playback, orchestration, IPC |
-| `suja` | command line: `talk`, `cancel`, `say`, `ask`, `status`, `watch`, and with `--features local` `chat`, `eval` |
+| `suja` | command line: `talk`, `cancel`, `say`, `ask`, `status`, `watch`, and with `--features local` (CPU) or `--features cuda` `chat`, `eval` |
 
 ## Models
 
@@ -44,5 +45,5 @@ The hotkey is `Super` by default. sujad asks crownpositor for it through `crowno
 
 ```sh
 cargo fmt --check && cargo clippy --workspace -- -D warnings && cargo test --workspace
-cargo run -p suja --features local -- eval eval/toolcalls.ron
+cargo run -p suja --features cuda -- eval eval/toolcalls.ron
 ```

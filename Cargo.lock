@@ -2416,7 +2416,8 @@ dependencies = [
  "ron 0.10.1",
  "serde",
  "suja-agent",
- "suja-llm",
+ "suja-model",
+ "suja-model-llama",
  "suja-proto",
  "suja-tools",
  "tokio",
@@ -2430,11 +2431,10 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "serde_json",
- "suja-llm",
+ "suja-model",
  "suja-tools",
  "thiserror",
  "tokio",
- "tokio-util",
  "tracing",
 ]
 
@@ -2452,7 +2452,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "suja-llm"
+name = "suja-model"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
+name = "suja-model-llama"
 version = "0.1.0"
 dependencies = [
  "dirs",
@@ -2460,7 +2471,9 @@ dependencies = [
  "llama-cpp-2",
  "serde",
  "serde_json",
+ "suja-model",
  "thiserror",
+ "tokio",
  "tokio-util",
  "tracing",
 ]
@@ -2520,7 +2533,8 @@ dependencies = [
  "serde_json",
  "suja-agent",
  "suja-context",
- "suja-llm",
+ "suja-model",
+ "suja-model-llama",
  "suja-proto",
  "suja-speech",
  "suja-tools",

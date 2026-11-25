@@ -3,7 +3,8 @@ resolver = "3"
 members = [
   "crates/suja-proto",
   "crates/suja-speech",
-  "crates/suja-llm",
+  "crates/suja-model",
+  "crates/suja-model-llama",
   "crates/suja-tools",
   "crates/suja-agent",
   "crates/suja-context",
@@ -26,7 +27,8 @@ dbg_macro = "deny"
 [workspace.dependencies]
 suja-proto = { path = "crates/suja-proto" }
 suja-speech = { path = "crates/suja-speech" }
-suja-llm = { path = "crates/suja-llm" }
+suja-model = { path = "crates/suja-model" }
+suja-model-llama = { path = "crates/suja-model-llama", default-features = false }
 suja-tools = { path = "crates/suja-tools" }
 suja-agent = { path = "crates/suja-agent" }
 suja-context = { path = "crates/suja-context" }

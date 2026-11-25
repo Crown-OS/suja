@@ -35,7 +35,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             hotkey: Keybind::new(Mods::META, None),
-            model_file: suja_llm::models::DEFAULT_MODEL_FILE.to_owned(),
+            model_file: suja_model_llama::models::DEFAULT_MODEL_FILE.to_owned(),
             stt_model_dir: "sherpa-onnx-streaming-zipformer-en-2023-06-26".to_owned(),
             tts: TtsConfig::default(),
             searxng_url: None,

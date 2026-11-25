@@ -1,28 +1,21 @@
-use std::sync::{Arc, Mutex};
+use std::fmt::Write;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
-use suja_llm::grammar::tool_call_grammar;
-use suja_llm::prompt::{render_assistant_end, render_system, render_tool_result, render_user};
-use suja_llm::{CancellationToken, Delta, FinishReason, ToolCall, ToolSpec};
+use suja_model::{
+    AssistantReply, CancellationToken, ChatModel, Entry, FinishReason, ModelEvent, ToolCall,
+    ToolResult, ToolSpec, TurnRequest,
+};
 use suja_tools::{Registry, ToolOutcome};
+use tokio::sync::Mutex;
 
+use crate::conversation::Conversation;
 use crate::error::AgentError;
 use crate::system_prompt::{INSTRUCTIONS, user_turn_prefix};
-use crate::worker::{GenerateMode, WorkerHandle, WorkerOptions};
 
 const MAX_TOOL_HOPS: usize = 3;
 const CONTEXT_RESERVE_TOKENS: u32 = 1536;
-const CONFIRMATIONS: &[&str] = &[
-    "yes",
-    "yeah",
-    "yep",
-    "sure",
-    "do it",
-    "go ahead",
-    "confirm",
-    "please do",
-    "ok",
-    "okay",
-];
+const MAX_REPLY_TOKENS: u32 = 512;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TurnEvent {
@@ -41,103 +34,57 @@ pub struct TurnReport {
 }
 
 pub struct Agent {
-    worker: WorkerHandle,
+    model: Arc<dyn ChatModel>,
     registry: Arc<Registry>,
-    pending_confirmation: Mutex<Option<ToolCall>>,
+    system: Arc<str>,
+    tools: Arc<[ToolSpec]>,
+    conversation: Mutex<Conversation>,
+    context_tokens: AtomicU32,
 }
 
 impl Agent {
-    pub fn tool_specs(registry: &Registry) -> Vec<ToolSpec> {
-        registry
-            .specs()
-            .into_iter()
-            .map(|spec| ToolSpec {
-                name: spec.name.to_owned(),
-                description: spec.description.to_owned(),
-                parameters: spec.parameters,
-            })
-            .collect()
-    }
-
-    pub fn worker_options(
-        registry: &Registry,
-        engine: suja_llm::EngineOptions,
-        session: suja_llm::SessionOptions,
-    ) -> Result<WorkerOptions, AgentError> {
-        let specs = Self::tool_specs(registry);
-        let tool_grammar = if specs.is_empty() {
-            None
-        } else {
-            Some(tool_call_grammar(&specs)?)
-        };
-        Ok(WorkerOptions {
-            engine,
-            session,
-            sampling: Default::default(),
-            prefix: render_system(INSTRUCTIONS, &specs),
-            tool_grammar,
-        })
-    }
-
-    pub fn new(worker: WorkerHandle, registry: Arc<Registry>) -> Self {
+    pub fn new(model: Arc<dyn ChatModel>, registry: Arc<Registry>) -> Self {
+        let system: Arc<str> = Arc::from(INSTRUCTIONS);
+        let tools = tool_specs(&registry);
+        model.warm_up(&system, &tools);
         Self {
-            worker,
+            model,
             registry,
-            pending_confirmation: Mutex::new(None),
+            system,
+            tools,
+            conversation: Mutex::new(Conversation::default()),
+            context_tokens: AtomicU32::new(0),
         }
     }
 
+    /// Tokens in the model's context after the last reply.
+    pub fn context_tokens(&self) -> u32 {
+        self.context_tokens.load(Ordering::Relaxed)
+    }
+
+    pub async fn reset_conversation(&self) {
+        self.conversation.lock().await.clear();
+    }
+
+    /// The first reply to `user_text` in a new conversation, with no tool executed.
     pub async fn first_action(
         &self,
         user_text: &str,
         cancel: CancellationToken,
     ) -> Result<TurnReport, AgentError> {
-        self.make_room().await?;
+        let mut conversation = self.conversation.lock().await;
+        conversation.clear();
         let prefix = user_turn_prefix(chrono::Local::now(), None);
-        self.worker
-            .append(render_user(&format!("{prefix}{user_text}")))
-            .await?;
+        conversation
+            .transcript
+            .push(Entry::User(format!("{prefix}{user_text}")));
         let mut report = TurnReport::default();
-        let finish = self
-            .generate_once(&cancel, &mut report, &mut |_| {})
+        let (_, finish) = self
+            .generate(&conversation.transcript, &cancel, &mut report, &mut |_| {})
             .await?;
-        self.worker
-            .append(render_assistant_end().to_owned())
-            .await?;
+        conversation.clear();
         report.finish = Some(finish);
         Ok(report)
-    }
-
-    async fn make_room(&self) -> Result<(), AgentError> {
-        let stats = self.worker.stats().await?;
-        if stats.remaining_tokens < CONTEXT_RESERVE_TOKENS {
-            tracing::info!(
-                remaining = stats.remaining_tokens,
-                "context nearly full, starting a fresh conversation"
-            );
-            self.worker.reset_conversation().await?;
-        }
-        Ok(())
-    }
-
-    fn take_confirmed(&self, user_text: &str) -> Option<ToolCall> {
-        let normalized = user_text
-            .trim()
-            .trim_end_matches(['.', '!'])
-            .to_ascii_lowercase();
-        let mut pending = self.pending_confirmation.lock().ok()?;
-        if CONFIRMATIONS
-            .iter()
-            .any(|yes| normalized == *yes || normalized.starts_with(&format!("{yes} ")))
-        {
-            return pending.take();
-        }
-        *pending = None;
-        None
-    }
-
-    pub fn worker(&self) -> &WorkerHandle {
-        &self.worker
     }
 
     pub async fn turn(
@@ -147,106 +94,165 @@ impl Agent {
         cancel: CancellationToken,
         mut on_event: impl FnMut(TurnEvent),
     ) -> Result<TurnReport, AgentError> {
-        let prefix = user_turn_prefix(chrono::Local::now(), screen_context);
-        self.worker
-            .append(render_user(&format!("{prefix}{user_text}")))
-            .await?;
+        let mut conversation = self.conversation.lock().await;
+        self.make_room(&mut conversation);
         let mut report = TurnReport::default();
-        if let Some(call) = self.take_confirmed(user_text) {
-            on_event(TurnEvent::ToolCall(call.clone()));
-            let outcome = match self
-                .registry
-                .call_confirmed(&call.name, call.arguments.clone())
-                .await
-            {
-                Ok(outcome) => outcome,
-                Err(error) => ToolOutcome::failure(error.to_string()),
-            };
-            on_event(TurnEvent::ToolResult {
-                name: call.name.clone(),
-                outcome: outcome.clone(),
-            });
-            self.worker
-                .append(render_tool_result(&format!(
-                    "The user confirmed. Tool `{}` ran: {}",
-                    call.name, outcome.detail_for_model
-                )))
-                .await?;
+        let mut user_entry = format!(
+            "{}{user_text}",
+            user_turn_prefix(chrono::Local::now(), screen_context)
+        );
+        if let Some(call) = conversation.take_confirmed(user_text) {
+            let outcome = self.run_confirmed(&call, &mut on_event).await;
+            let _ = write!(
+                user_entry,
+                "\n[confirmed: tool `{}` ran: {}]",
+                call.name, outcome.detail_for_model
+            );
             report.tool_calls.push(call);
         }
+        conversation.transcript.push(Entry::User(user_entry));
+
         for _hop in 0..=MAX_TOOL_HOPS {
-            let finish = self
-                .generate_once(&cancel, &mut report, &mut on_event)
+            let (reply, finish) = self
+                .generate(
+                    &conversation.transcript,
+                    &cancel,
+                    &mut report,
+                    &mut on_event,
+                )
                 .await?;
-            match finish {
-                FinishReason::ToolCall => {
-                    let Some(call) = report.tool_calls.last().cloned() else {
-                        break;
-                    };
-                    self.worker
-                        .append(render_assistant_end().to_owned())
-                        .await?;
-                    let outcome = self.execute(&call).await;
-                    if outcome.needs_confirmation {
-                        if let Ok(mut pending) = self.pending_confirmation.lock() {
-                            *pending = Some(call.clone());
-                        }
-                        on_event(TurnEvent::NeedsConfirmation(call.clone()));
-                    }
-                    on_event(TurnEvent::ToolResult {
-                        name: call.name.clone(),
-                        outcome: outcome.clone(),
-                    });
-                    self.worker
-                        .append(render_tool_result(&outcome.detail_for_model))
-                        .await?;
-                }
-                other => {
-                    self.worker
-                        .append(render_assistant_end().to_owned())
-                        .await?;
-                    report.finish = Some(other);
-                    on_event(TurnEvent::Finished(other));
-                    return Ok(report);
-                }
+            let calls = reply.tool_calls.clone();
+            if !reply.is_empty() {
+                conversation.transcript.push(Entry::Assistant(reply));
             }
+            if finish != FinishReason::ToolCall || calls.is_empty() {
+                report.finish = Some(finish);
+                on_event(TurnEvent::Finished(finish));
+                return Ok(report);
+            }
+            let results = self
+                .run_calls(&calls, &mut conversation, &mut on_event)
+                .await;
+            conversation.transcript.push(Entry::ToolResults(results));
         }
         report.finish = Some(FinishReason::LengthLimit);
         on_event(TurnEvent::Finished(FinishReason::LengthLimit));
         Ok(report)
     }
 
-    async fn generate_once(
+    fn make_room(&self, conversation: &mut Conversation) {
+        let limit = self.model.capabilities().context_tokens;
+        if self.context_tokens() + CONTEXT_RESERVE_TOKENS > limit {
+            tracing::info!(
+                used = self.context_tokens(),
+                limit,
+                "context nearly full, starting a fresh conversation"
+            );
+            conversation.clear();
+            self.context_tokens.store(0, Ordering::Relaxed);
+        }
+    }
+
+    async fn generate(
         &self,
+        transcript: &[Entry],
         cancel: &CancellationToken,
         report: &mut TurnReport,
         on_event: &mut impl FnMut(TurnEvent),
-    ) -> Result<FinishReason, AgentError> {
-        let (mut deltas, done) = self
-            .worker
-            .generate(GenerateMode::WithTools, cancel.clone())?;
-        while let Some(delta) = deltas.recv().await {
-            match delta {
-                Delta::Text(text) => {
+    ) -> Result<(AssistantReply, FinishReason), AgentError> {
+        let mut stream = self.model.stream(
+            TurnRequest {
+                system: self.system.clone(),
+                tools: self.tools.clone(),
+                transcript: transcript.to_vec(),
+                max_reply_tokens: MAX_REPLY_TOKENS,
+            },
+            cancel.clone(),
+        );
+        let mut reply = AssistantReply::default();
+        while let Some(event) = stream.recv().await {
+            match event? {
+                ModelEvent::Text(text) => {
+                    reply.text.push_str(&text);
                     report.spoken.push_str(&text);
                     on_event(TurnEvent::Text(text));
                 }
-                Delta::ToolCall(call) => {
+                ModelEvent::ToolCall(call) => {
+                    reply.tool_calls.push(call.clone());
                     report.tool_calls.push(call.clone());
                     on_event(TurnEvent::ToolCall(call));
                 }
-                Delta::Finished(_) => {}
+                ModelEvent::Finished(finish) => {
+                    reply.backend_data = finish.backend_data;
+                    self.context_tokens
+                        .store(finish.usage.total(), Ordering::Relaxed);
+                    return Ok((reply, finish.reason));
+                }
             }
         }
-        done.await
-            .map_err(|_| AgentError::WorkerGone)?
-            .map_err(Into::into)
+        Err(AgentError::StreamEnded)
     }
 
-    async fn execute(&self, call: &ToolCall) -> ToolOutcome {
-        match self.registry.call(&call.name, call.arguments.clone()).await {
+    async fn run_calls(
+        &self,
+        calls: &[ToolCall],
+        conversation: &mut Conversation,
+        on_event: &mut impl FnMut(TurnEvent),
+    ) -> Vec<ToolResult> {
+        let mut results = Vec::with_capacity(calls.len());
+        for call in calls {
+            let outcome = match self.registry.call(&call.name, call.arguments.clone()).await {
+                Ok(outcome) => outcome,
+                Err(error) => ToolOutcome::failure(error.to_string()),
+            };
+            if outcome.needs_confirmation {
+                conversation.pending_confirmation = Some(call.clone());
+                on_event(TurnEvent::NeedsConfirmation(call.clone()));
+            }
+            results.push(ToolResult {
+                call_id: call.id.clone(),
+                name: call.name.clone(),
+                content: outcome.detail_for_model.clone(),
+                is_error: !outcome.ok && !outcome.needs_confirmation,
+            });
+            on_event(TurnEvent::ToolResult {
+                name: call.name.clone(),
+                outcome,
+            });
+        }
+        results
+    }
+
+    async fn run_confirmed(
+        &self,
+        call: &ToolCall,
+        on_event: &mut impl FnMut(TurnEvent),
+    ) -> ToolOutcome {
+        on_event(TurnEvent::ToolCall(call.clone()));
+        let outcome = match self
+            .registry
+            .call_confirmed(&call.name, call.arguments.clone())
+            .await
+        {
             Ok(outcome) => outcome,
             Err(error) => ToolOutcome::failure(error.to_string()),
-        }
+        };
+        on_event(TurnEvent::ToolResult {
+            name: call.name.clone(),
+            outcome: outcome.clone(),
+        });
+        outcome
     }
+}
+
+fn tool_specs(registry: &Registry) -> Arc<[ToolSpec]> {
+    registry
+        .specs()
+        .into_iter()
+        .map(|spec| ToolSpec {
+            name: spec.name.to_owned(),
+            description: spec.description.to_owned(),
+            parameters: spec.parameters,
+        })
+        .collect()
 }

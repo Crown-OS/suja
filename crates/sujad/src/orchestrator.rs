@@ -318,7 +318,7 @@ impl Orchestrator {
                 ));
                 let _ = events.send((
                     turn_id,
-                    TurnEvent::Finished(suja_llm::FinishReason::Cancelled),
+                    TurnEvent::Finished(suja_model::FinishReason::Cancelled),
                 ));
             }
         });
@@ -373,13 +373,9 @@ impl Orchestrator {
                 }
             }
             TurnEvent::Finished(_) => {
-                let agent = self.services.agent.clone();
-                let context_tokens = self.outputs.context_tokens.clone();
-                tokio::spawn(async move {
-                    if let Ok(stats) = agent.worker().stats().await {
-                        context_tokens.store(stats.tokens_in_context, Ordering::Relaxed);
-                    }
-                });
+                self.outputs
+                    .context_tokens
+                    .store(self.services.agent.context_tokens(), Ordering::Relaxed);
                 let rest = self
                     .with_turn(turn_id, |turn| turn.chunker.flush())
                     .flatten();
@@ -481,9 +477,7 @@ impl Orchestrator {
         if self.state == AssistantState::Idle
             && self.last_activity.elapsed() > self.services.idle_reset
         {
-            if let Err(error) = self.services.agent.worker().reset_conversation().await {
-                tracing::warn!(%error, "conversation reset failed");
-            }
+            self.services.agent.reset_conversation().await;
             self.last_activity = tokio::time::Instant::now();
         }
     }

@@ -1,6 +1,4 @@
 use encoding_rs::Decoder;
-use llama_cpp_2::model::LlamaModel;
-use llama_cpp_2::token::LlamaToken;
 
 pub struct PieceDecoder {
     decoder: Decoder,
@@ -23,13 +21,5 @@ impl PieceDecoder {
         let mut text = String::with_capacity(capacity);
         let _ = self.decoder.decode_to_string(bytes, &mut text, false);
         text
-    }
-}
-
-pub fn single_token_for(model: &LlamaModel, text: &str) -> Option<LlamaToken> {
-    let tokens = model.vocab().tokenize(text.as_bytes(), false, true);
-    match tokens.as_slice() {
-        [token] => Some(*token),
-        _ => None,
     }
 }

@@ -2,7 +2,7 @@ use llama_cpp_2::model::LlamaModel;
 use llama_cpp_2::sampling::LlamaSampler;
 
 use crate::error::LlmError;
-use crate::prompt::ToolSpec;
+use suja_model::ToolSpec;
 
 pub const TOOL_CALL_OPEN: &str = "<tool_call>";
 pub const TOOL_CALL_CLOSE: &str = "</tool_call>";

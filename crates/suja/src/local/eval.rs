@@ -29,16 +29,13 @@ pub async fn eval(model: Option<PathBuf>, cases: &Path) -> Result<()> {
     let file: CaseFile = ron::from_str(&std::fs::read_to_string(cases).context("read cases")?)
         .context("parse cases")?;
     let agent = load_agent(model).await?;
-    let result = score(&agent, &file).await;
-    agent.worker().shutdown();
-    result
+    score(&agent, &file).await
 }
 
 async fn score(agent: &Agent, file: &CaseFile) -> Result<()> {
     let mut passed = 0usize;
     let mut first_token_total = 0u128;
     for case in &file.cases {
-        agent.worker().reset_conversation().await?;
         let started = Instant::now();
         let report = agent
             .first_action(&case.prompt, CancellationToken::new())

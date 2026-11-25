@@ -8,7 +8,8 @@ description = "suja voice assistant daemon"
 [dependencies]
 suja-proto = { workspace = true }
 suja-agent = { workspace = true }
-suja-llm = { workspace = true }
+suja-model = { workspace = true }
+suja-model-llama = { workspace = true }
 suja-tools = { workspace = true }
 suja-speech = { workspace = true }
 suja-context = { workspace = true }
@@ -28,6 +29,10 @@ tokio-util = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 dirs = { workspace = true }
+
+[features]
+default = ["cuda"]
+cuda = ["suja-model-llama/cuda"]
 
 [lints]
 workspace = true

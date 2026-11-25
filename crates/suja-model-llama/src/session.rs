@@ -9,7 +9,9 @@ use tokio_util::sync::CancellationToken;
 
 use crate::engine::Engine;
 use crate::error::LlmError;
-use crate::stream::{Delta, FinishReason};
+use suja_model::FinishReason;
+
+use crate::stream::Delta;
 use crate::toolcall::{Parsed, ToolCallParser};
 use crate::util::tokens::PieceDecoder;
 
@@ -18,7 +20,6 @@ pub struct SessionOptions {
     pub context_tokens: u32,
     pub batch_tokens: u32,
     pub threads: i32,
-    pub max_reply_tokens: usize,
 }
 
 impl Default for SessionOptions {
@@ -27,7 +28,6 @@ impl Default for SessionOptions {
             context_tokens: 8192,
             batch_tokens: 512,
             threads: 8,
-            max_reply_tokens: 512,
         }
     }
 }
@@ -142,6 +142,7 @@ impl<'engine> Session<'engine> {
         &mut self,
         sampler: &mut LlamaSampler,
         cancel: &CancellationToken,
+        max_reply_tokens: usize,
         mut sink: impl FnMut(Delta),
     ) -> Result<FinishReason, LlmError> {
         let vocab = self.engine.model().vocab();
@@ -152,7 +153,7 @@ impl<'engine> Session<'engine> {
             if cancel.is_cancelled() {
                 return Ok(self.finish(FinishReason::Cancelled, &mut parser, &mut sink));
             }
-            if produced >= self.options.max_reply_tokens || self.remaining_tokens() == 0 {
+            if produced >= max_reply_tokens || self.remaining_tokens() == 0 {
                 return Ok(self.finish(FinishReason::LengthLimit, &mut parser, &mut sink));
             }
             let token = sampler.sample(&self.context, self.batch.n_tokens() - 1);
@@ -165,7 +166,6 @@ impl<'engine> Session<'engine> {
                 Parsed::Call(Ok(call)) => {
                     self.commit(token)?;
                     sink(Delta::ToolCall(call));
-                    sink(Delta::Finished(FinishReason::ToolCall));
                     return Ok(FinishReason::ToolCall);
                 }
                 Parsed::Call(Err(error)) => {
@@ -199,7 +199,6 @@ impl<'engine> Session<'engine> {
         if let Some(rest) = parser.flush() {
             sink(Delta::Text(rest));
         }
-        sink(Delta::Finished(reason));
         reason
     }
 }

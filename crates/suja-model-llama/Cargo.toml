@@ -1,19 +1,25 @@
 [package]
-name = "suja-llm"
+name = "suja-model-llama"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Local language model engine for suja: llama.cpp, prompt cache, lazy-grammar tool calls"
+description = "llama.cpp backend of suja: KV-cached session, Qwen prompt format, lazy-grammar tool calls"
 
 [dependencies]
-llama-cpp-2 = { version = "0.1.161", features = ["cuda"] }
+suja-model = { workspace = true }
+llama-cpp-2 = "0.1.161"
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 encoding_rs = "0.8"
 dirs = { workspace = true }
+
+[features]
+default = ["cuda"]
+cuda = ["llama-cpp-2/cuda"]
 
 [lints]
 workspace = true

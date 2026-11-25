@@ -3,17 +3,18 @@ name = "suja-agent"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Agent loop: drives the language model worker and executes tool calls"
+description = "Agent loop: owns the conversation, streams model replies and executes tool calls"
 
 [dependencies]
-suja-llm = { workspace = true }
+suja-model = { workspace = true }
 suja-tools = { workspace = true }
-serde_json = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["sync", "rt"] }
-tokio-util = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
 tracing = { workspace = true }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
+[dev-dependencies]
+serde_json = { workspace = true }
 
 [lints]
 workspace = true

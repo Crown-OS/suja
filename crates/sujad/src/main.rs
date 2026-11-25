@@ -14,9 +14,10 @@ use std::sync::atomic::AtomicU32;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use suja_agent::{Agent, WorkerHandle};
-use suja_llm::models::find_model;
-use suja_llm::{EngineOptions, SessionOptions};
+use suja_agent::Agent;
+use suja_model_llama::grammar::SamplingOptions;
+use suja_model_llama::models::find_model;
+use suja_model_llama::{EngineOptions, LlamaBackend, LlamaBackendOptions, SessionOptions};
 use suja_proto::AssistantState;
 use suja_speech::tts::SherpaSynthesizer;
 use suja_speech::{ModelPaths, Synthesizer, TtsBackend, TtsOptions};
@@ -41,19 +42,17 @@ async fn main() -> Result<()> {
     let model_path = find_model(&config.model_file)
         .with_context(|| format!("model {} not found", config.model_file))?;
     let registry = Arc::new(Registry::with_defaults(&config.tool_settings()));
-    let worker_options = Agent::worker_options(
-        &registry,
-        EngineOptions {
+    let backend = LlamaBackend::load(LlamaBackendOptions {
+        engine: EngineOptions {
             model_path,
             gpu_layers: 1000,
         },
-        SessionOptions::default(),
-    )?;
-    let worker = WorkerHandle::spawn(worker_options)
-        .await
-        .context("load language model")?;
-    let agent_worker = worker.clone();
-    let agent = Arc::new(Agent::new(worker, registry));
+        session: SessionOptions::default(),
+        sampling: SamplingOptions::default(),
+    })
+    .await
+    .context("load language model")?;
+    let agent = Arc::new(Agent::new(Arc::new(backend), registry));
 
     let paths = ModelPaths::discover(&config.stt_model_dir, &config.tts.model_dir)
         .context("speech models")?;
@@ -109,14 +108,11 @@ async fn main() -> Result<()> {
         },
     );
     tracing::info!(preferred_hotkey = %config.hotkey, "sujad ready");
-    let worker = agent_worker.clone();
-    let result = tokio::select! {
+    tokio::select! {
         result = ipc.run() => result,
         result = orchestrator.run() => result,
         _ = terminate() => Ok(()),
-    };
-    worker.shutdown();
-    result
+    }
 }
 
 async fn terminate() {

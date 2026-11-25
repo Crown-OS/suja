@@ -1,5 +1,5 @@
 use crate::grammar::{TOOL_CALL_CLOSE, TOOL_CALL_OPEN};
-use crate::stream::ToolCall;
+use crate::stream::ParsedToolCall;
 
 #[derive(Default)]
 pub struct ToolCallParser {
@@ -9,7 +9,7 @@ pub struct ToolCallParser {
 
 pub enum Parsed {
     Text(String),
-    Call(Result<ToolCall, serde_json::Error>),
+    Call(Result<ParsedToolCall, serde_json::Error>),
     Nothing,
 }
 
@@ -68,7 +68,7 @@ fn longest_prefix_tail(text: &str, marker: &str) -> usize {
 mod tests {
     use super::*;
 
-    fn collect(pieces: &[&str]) -> (String, Option<ToolCall>) {
+    fn collect(pieces: &[&str]) -> (String, Option<ParsedToolCall>) {
         let mut parser = ToolCallParser::default();
         let mut text = String::new();
         let mut call = None;
